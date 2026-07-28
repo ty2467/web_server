@@ -1,0 +1,69 @@
+<div class="article-container" *ngIf="article()">
+  <article class="article-main">
+
+    <header class="article-header">
+      <span class="category-tag">{{ article()?.category }}</span>
+      <h1 class="article-title">{{ article()?.headline }}</h1>
+      <p class="article-summary" *ngIf="article()?.dek">{{ article()?.dek }}</p>
+
+      <div class="article-byline">
+        <span class="byline-author">{{ article()?.author }}</span>
+        <span class="byline-sep">·</span>
+        <time class="byline-date" [attr.datetime]="article()?.publishedAt">
+          {{ article()?.publishedAt | date: 'yyyy-MM-dd HH:mm' }}
+        </time>
+        <ng-container *ngIf="showUpdated()">
+          <span class="byline-sep">·</span>
+          <time class="byline-date byline-updated" [attr.datetime]="article()?.updatedAt">
+            updated {{ article()?.updatedAt | date: 'yyyy-MM-dd HH:mm' }}
+          </time>
+        </ng-container>
+        <span class="byline-sep">·</span>
+        <span class="byline-reading-time">{{ article()?.readingTimeMinutes }} min read</span>
+      </div>
+    </header>
+
+    <figure class="article-lead-image" *ngIf="article()?.leadImage as lead">
+      <img [src]="lead.url" [alt]="lead.alt">
+      <figcaption *ngIf="lead.caption || lead.credit">
+        <span class="media-caption" *ngIf="lead.caption">{{ lead.caption }}</span>
+        <span class="media-credit" *ngIf="lead.credit">{{ lead.credit }}</span>
+      </figcaption>
+    </figure>
+
+    <div class="article-content">
+      <div *ngFor="let block of article()?.blocks">
+
+        <div *ngIf="$any(block).type === 'paragraph'"
+             class="article-paragraph"
+             [innerHTML]="$any(block).html">
+        </div>
+
+        <figure *ngIf="$any(block).type === 'image' || $any(block).type === 'video'" class="article-media">
+          <img *ngIf="$any(block).type === 'image'"
+               [src]="$any(block).url" [alt]="$any(block).alt">
+          <video *ngIf="$any(block).type === 'video'"
+                 controls muted loop playsinline
+                 [attr.aria-label]="$any(block).alt">
+            <source [src]="$any(block).url" type="video/mp4">
+          </video>
+          <figcaption *ngIf="$any(block).caption || $any(block).credit">
+            <span class="media-caption" *ngIf="$any(block).caption">{{ $any(block).caption }}</span>
+            <span class="media-credit" *ngIf="$any(block).credit">{{ $any(block).credit }}</span>
+          </figcaption>
+        </figure>
+
+      </div>
+    </div>
+
+  </article>
+
+  <aside class="article-sidebar" *ngIf="suggestedArticles().length > 0">
+    <h3 class="sidebar-heading">推荐阅读</h3>
+    <div *ngFor="let sug of suggestedArticles()"
+         class="suggested-article"
+         (click)="goToArticle(sug.slug)">
+      <div class="suggested-title">{{ sug.headline }}</div>
+    </div>
+  </aside>
+</div>

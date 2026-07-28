@@ -1,0 +1,80 @@
+<div class="dashboard-wrapper">
+  <div class="dashboard-container">
+    <div class="header-row">
+      <div class="title-group">
+        <h3>Editorial Data Stream</h3>
+        <p class="subtitle">Real-time content management</p>
+      </div>
+
+      <div class="header-actions">
+        <button
+          class="delete-btn-main"
+          *ngIf="selectedIds().size > 0"
+          (click)="issueBulkDeletion()">
+          Delete Selected ({{ selectedIds().size }})
+        </button>
+        <span class="badge" *ngIf="!isLoading()">{{ articles().length }} Entries</span>
+      </div>
+
+    </div>
+
+    <div class="table-responsive">
+      <table class="glass-table">
+        <thead>
+        <tr>
+          <th class="checkbox-col">Select</th>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Publish Date & Time</th>
+        </tr>
+        </thead>
+        <tbody>
+          @if (isLoading()) {
+            <tr>
+              <td colspan="4" class="status-cell">
+                <div class="skeleton-loader">Synchronizing with Spring Boot...</div>
+              </td>
+            </tr>
+          } @else {
+            @for (item of articles(); track item.id) {
+<!--              <tr class="data-row" [class.selected]="selectedIds().has(item.id)">-->
+<!--                <td class="checkbox-col">-->
+<!--                  &lt;!&ndash; this section: toggleSelection gets passed id.&ndash;&gt;-->
+
+<!--                  <input-->
+<!--                    type="checkbox"-->
+<!--                    [checked]="selectedIds().has(item.id)"-->
+<!--                    (change)="toggleSelection(item.id)"-->
+<!--                  />-->
+
+<tr
+    class="data-row"
+    [class.selected]="selectedIds().has(item.id)"
+    (click)="goToFullEdit(item.id)"
+    style="cursor: pointer;"> <td class="checkbox-col" (click)="$event.stopPropagation()"> <input
+        type="checkbox"
+        [checked]="selectedIds().has(item.id)"
+        (change)="toggleSelection(item.id)"
+      />
+                </td>
+                <td class="id-col">#{{ item.id }}</td>
+                <td class="title-col"><strong>{{ item.title }}</strong></td>
+                <td class="date-col">{{ item.date_time | date: 'MMM d, y, h:mm a' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="status-cell">No editorial records found.</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+
+
+    <p *ngIf="errorMessage()" class="status-msg error">{{ errorMessage() }}</p>
+  </div>
+
+
+</div>

@@ -1,0 +1,58 @@
+<div class="container">
+  <header class="logo-bar">
+    <div class="logo-container" routerLink="/home" style="cursor:pointer;">
+      <img src="/MainLogo.png" alt="PhoenixTV Logo" class="logo-image">
+    </div>
+  </header>
+
+  <nav class="main-nav">
+    <a routerLink="home">Home</a>
+  </nav>
+
+  <nav class="menu-bar">
+    <ul>
+      <li *ngFor="let item of menuItems"
+          [routerLink]="['/category', item]"
+          routerLinkActive="active-menu-item"> {{ item }}
+      </li>
+    </ul>
+  </nav>
+
+  <div class="stock-ticker-bar" *ngIf="stockData.length > 0">
+    <div class="ticker-wrapper">
+      <div class="ticker-item" *ngFor="let stock of stockData">
+        <span class="stock-symbol">{{ stock.symbol }}</span>
+        <span class="stock-price">{{ stock.price | number:'1.2-2' }}</span>
+        <span class="stock-change" [ngClass]="stock.change >= 0 ? 'up' : 'down'">
+          {{ stock.change >= 0 ? '+' : '' }}{{ stock.percent | number:'1.2-2' }}%
+        </span>
+      </div>
+      <div class="ticker-item" *ngFor="let stock of stockData">
+        <span class="stock-symbol">{{ stock.symbol }}</span>
+        <span class="stock-price">{{ stock.price | number:'1.2-2' }}</span>
+        <span class="stock-change" [ngClass]="stock.change >= 0 ? 'up' : 'down'">
+          {{ stock.change >= 0 ? '+' : '' }}{{ stock.percent | number:'1.2-2' }}%
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <router-outlet></router-outlet>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-columns">
+      <div class="footer-column">
+        <h4>About</h4>
+        <ul>
+          <li><a href="/about">About Us</a></li>
+          <li><a href="/team">Our Team</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 Phoenix TV USA. All rights reserved.
+    </div>
+  </footer>
+</div>

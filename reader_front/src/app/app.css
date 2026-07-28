@@ -1,0 +1,187 @@
+/* =========================================
+   1. GLOBAL & MOBILE-FIRST BASE (< 768px)
+   ========================================= */
+/* Container logic: Fluid padding for mobile, zero margins */
+.container {
+  width: 100%;
+  padding: 0 15px;
+  box-sizing: border-box;
+}
+
+/* Header & Logo */
+.logo-bar {
+  padding: 15px 0;
+  border-bottom: 4px solid #ee812b;
+}
+
+.logo-container {
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.logo-image {
+  width: 220px; /* Scaled down for mobile */
+  height: auto;
+}
+
+/* Navigation Menu */
+.main-nav {
+  padding: 10px 0;
+}
+
+.menu-bar {
+  background: #ee812b;
+  overflow-x: auto; /* Allows horizontal scrolling of menu on mobile */
+  -webkit-overflow-scrolling: touch;
+}
+
+.menu-bar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  white-space: nowrap; /* Prevents awkward vertical stacking */
+}
+
+.menu-bar li {
+  padding: 12px 15px;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.menu-bar li:hover,
+.active-menu-item {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Stock Ticker */
+.stock-ticker-bar {
+  background: #000;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ticker-wrapper {
+  display: flex;
+  white-space: nowrap;
+  animation: ticker-scroll 60s linear infinite;
+}
+
+.ticker-item {
+  display: flex;
+  gap: 12px;
+  padding: 0 20px;
+}
+
+.stock-symbol { color: #fff; }
+.stock-price { color: #b0b0b0; }
+.up { color: #00ff41; }
+.down { color: #ff3b30; }
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+main {
+  margin-top: 20px;
+}
+
+/* Footer: Stacked for mobile */
+.site-footer {
+  background-color: #ee812b;
+  color: white;
+  padding: 30px 20px 15px 20px;
+  font-size: 12px;
+  margin-top: 40px;
+}
+
+.footer-columns {
+  display: grid;
+  grid-template-columns: 1fr; /* Single column on mobile */
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto 20px auto;
+}
+
+.footer-column h4 {
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.footer-column ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-column li { margin-bottom: 6px; }
+.footer-column a { color: white; text-decoration: none; font-size: 12px; }
+.footer-column a:hover { text-decoration: underline; }
+
+.footer-bottom {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+
+/* =========================================
+   2. TABLET BREAKPOINT (>= 768px)
+   ========================================= */
+@media (min-width: 768px) {
+  .container {
+    padding: 0 30px;
+  }
+
+  .logo-image {
+    width: 280px;
+  }
+
+  .footer-columns {
+    grid-template-columns: repeat(2, 1fr); /* 2x2 grid for footer */
+  }
+}
+
+/* =========================================
+   3. DESKTOP / LAPTOP BREAKPOINT (>= 1100px)
+   ========================================= */
+@media (min-width: 1100px) {
+  .logo-bar {
+    padding: 20px 0;
+  }
+
+  .logo-image {
+    width: 360px; /* Full size logo */
+    margin-right: 15px;
+  }
+
+  .menu-bar li {
+    padding: 15px 20px; /* Larger hit areas */
+    font-size: 16px;
+  }
+
+  .ticker-item {
+    padding: 0 35px;
+  }
+
+  .footer-columns {
+    grid-template-columns: repeat(4, 1fr); /* Full horizontal spread */
+  }
+}
+
+/* =========================================
+   4. LARGE MONITOR BREAKPOINT (>= 1600px)
+   ========================================= */
+

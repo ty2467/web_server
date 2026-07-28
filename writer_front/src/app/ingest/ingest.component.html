@@ -1,0 +1,163 @@
+<div class="ingest-wrapper">
+  <div class="ingest-container">
+    <form [formGroup]="metaForm" (ngSubmit)="submit()">
+
+      <header class="editor-header">
+        <input type="text" formControlName="title" class="title-input" placeholder="Title">
+        <textarea formControlName="summary" class="summary-input" placeholder="Write a subtitle..."></textarea>
+
+        <div class="meta-row">
+          <div class="meta-field">
+            <label>Author</label>
+            <input type="text" formControlName="author" placeholder="Writer Name">
+          </div>
+          <div class="meta-field">
+            <label>Category</label>
+            <select formControlName="category">
+              <option value="">— Select —</option>
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+          <div class="meta-field">
+            <label>Publish Date</label>
+            <input type="datetime-local" formControlName="date_time">
+          </div>
+          <div class="meta-field">
+            <label>Section Zone</label>
+            <input type="text" formControlName="section_zone" placeholder="e.g. front, opinion">
+          </div>
+          <div class="meta-field">
+            <label>Intra-Section Zone</label>
+            <input type="number" formControlName="intra_section_zone" min="0" max="255">
+          </div>
+        </div>
+
+        <div class="lead-image-section">
+          <label>Lead Image</label>
+          <div class="image-uploader" (click)="leadImgInput.click()" [class.processing]="leadImageUploading">
+            <img *ngIf="leadImagePreview as preview" [src]="preview">
+            <div class="progress-container" *ngIf="leadImageUploading">
+              <div class="progress-bar" [style.width.%]="leadImageProgress"></div>
+              <span class="progress-text">{{ leadImageProgress }}%</span>
+            </div>
+            <div *ngIf="!leadImagePreview && !leadImageUploading" class="upload-prompt">+ Add Lead Image</div>
+          </div>
+          <input type="file" #leadImgInput (change)="onLeadImageSelected($event)" hidden accept="image/*">
+          <div class="media-controls" *ngIf="leadImagePreview">
+            <input type="text" class="caption-input" placeholder="Caption (optional)" formControlName="lead_image_caption">
+            <button type="button" class="remove-media" (click)="removeLeadImage()">✕</button>
+          </div>
+        </div>
+      </header>
+
+      <hr class="editor-divider">
+
+      <div class="status-msg" *ngIf="status">{{ status }}</div>
+
+      <div class="canvas"
+           cdkDropList
+           (cdkDropListDropped)="drop($event)">
+
+        <div *ngFor="let block of blocks; trackBy: trackByLocalId"
+             class="block-unit"
+             cdkDrag>
+
+          <div class="drag-handle" cdkDragHandle>⠿</div>
+
+          <div *ngIf="block.type === 'paragraph'" class="tiptap-wrapper">
+            <div class="tiptap-menu-bar" *ngIf="editors.get(block.localId) as editor">
+              <div class="menu-group">
+                <button type="button" (click)="editor.chain().focus().toggleBold().run()" [class.is-active]="editor.isActive('bold')">B</button>
+                <button type="button" (click)="editor.chain().focus().toggleItalic().run()" [class.is-active]="editor.isActive('italic')">I</button>
+                <button type="button" (click)="editor.chain().focus().toggleUnderline().run()" [class.is-active]="editor.isActive('underline')">U</button>
+                <button type="button" (click)="editor.chain().focus().toggleStrike().run()" [class.is-active]="editor.isActive('strike')">S</button>
+                <button type="button" (click)="setLink(editor)" [class.is-active]="editor.isActive('link')">🔗</button>
+              </div>
+              <div class="menu-group">
+                <button type="button" (click)="editor.chain().focus().toggleHeading({ level: 1 }).run()" [class.is-active]="editor.isActive('heading', { level: 1 })">H1</button>
+                <button type="button" (click)="editor.chain().focus().toggleHeading({ level: 2 }).run()" [class.is-active]="editor.isActive('heading', { level: 2 })">H2</button>
+                <button type="button" (click)="editor.chain().focus().toggleBulletList().run()" [class.is-active]="editor.isActive('bulletList')">•</button>
+                <button type="button" (click)="editor.chain().focus().toggleOrderedList().run()" [class.is-active]="editor.isActive('orderedList')">1.</button>
+              </div>
+            </div>
+            <tiptap-editor [editor]="editors.get(block.localId)!" class="editable-area"></tiptap-editor>
+            <div class="block-actions" *ngIf="(uiState.get(block.localId)?.charCount ?? 0) > 0">
+              <span class="char-count">{{ uiState.get(block.localId)?.charCount }} characters</span>
+              <button type="button" class="mini-remove" (click)="removeBlock(block.localId)">✕</button>
+            </div>
+          </div>
+
+          <div *ngIf="block.type === 'image'" class="media-container">
+            <div class="image-uploader" (click)="imgInput.click()" [class.processing]="uiState.get(block.localId)?.isUploading">
+              <img *ngIf="uiState.get(block.localId)?.previewUrl as preview" [src]="preview">
+              <div class="progress-container" *ngIf="uiState.get(block.localId)?.isUploading">
+                <div class="progress-bar" [style.width.%]="uiState.get(block.localId)?.progress"></div>
+                <span class="progress-text">{{ uiState.get(block.localId)?.progress }}%</span>
+              </div>
+              <div *ngIf="!uiState.get(block.localId)?.previewUrl && !uiState.get(block.localId)?.isUploading" class="upload-prompt">+ Add Image</div>
+            </div>
+            <div class="media-controls">
+              <div class="align-group">
+                <button type="button" title="Align caption left" [class.is-active]="alignOf(block) === 'left'" (click)="setAlign(block.localId, 'left')">←</button>
+                <button type="button" title="Align caption center" [class.is-active]="alignOf(block) === 'center'" (click)="setAlign(block.localId, 'center')">↔</button>
+                <button type="button" title="Align caption right" [class.is-active]="alignOf(block) === 'right'" (click)="setAlign(block.localId, 'right')">→</button>
+              </div>
+              <input type="text" class="caption-input" placeholder="Caption (optional)"
+                     [value]="captionOf(block)"
+                     [style.textAlign]="alignOf(block)"
+                     (input)="onCaptionInput($event, block.localId)">
+            </div>
+            <input type="file" #imgInput (change)="onImageSelected($event, block.localId)" hidden accept="image/*">
+            <button type="button" class="remove-media" (click)="removeBlock(block.localId)">✕</button>
+          </div>
+
+          <div *ngIf="block.type === 'video'" class="media-container">
+            <div class="video-uploader" (click)="vidInput.click()" [class.processing]="uiState.get(block.localId)?.isUploading">
+              <div class="video-info" *ngIf="uiState.get(block.localId)?.file as f">🎥 {{ f.name }}</div>
+              <div *ngIf="!uiState.get(block.localId)?.file" class="upload-prompt">+ Select Video</div>
+              <div class="progress-container" *ngIf="uiState.get(block.localId)?.isUploading">
+                <div class="progress-bar" [style.width.%]="uiState.get(block.localId)?.progress"></div>
+                <span class="progress-text">{{ uiState.get(block.localId)?.progress }}%</span>
+              </div>
+            </div>
+            <input type="file" #vidInput (change)="onVideoSelected($event, block.localId)" hidden accept="video/*">
+            <button type="button" class="remove-media" (click)="removeBlock(block.localId)">✕</button>
+          </div>
+
+          <div class="insert-separator">
+            <div class="insert-pill">
+              <button type="button" (click)="insertBlock('paragraph', block.localId)">
+                <span class="icon">+</span> Text
+              </button>
+              <div class="v-divider"></div>
+              <button type="button" (click)="insertBlock('image', block.localId)">
+                <span class="icon">+</span> Image
+              </button>
+              <div class="v-divider"></div>
+              <button type="button" (click)="insertBlock('video', block.localId)">
+                <span class="icon">+</span> Video
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="editor-actions">
+        <div class="toolbar-inline">
+          <button type="button" (click)="insertBlock('paragraph', lastBlockId)">¶ Text</button>
+          <button type="button" (click)="insertBlock('image', lastBlockId)">📷 Image</button>
+          <button type="button" (click)="insertBlock('video', lastBlockId)">🎥 Video</button>
+        </div>
+        <button type="submit" class="submit-btn" [class.success-state]="isSuccess"
+                [disabled]="metaForm.invalid || isSuccess || isAnyBlockUploading">
+          <ng-container *ngIf="!isSuccess">
+            {{ isAnyBlockUploading ? 'Uploading Media...' : (editingId ? 'Update Article' : 'Publish to Database') }}
+          </ng-container>
+          <ng-container *ngIf="isSuccess">✓ Success</ng-container>
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
