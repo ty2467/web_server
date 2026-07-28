@@ -6,8 +6,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rabbitmq.client.*;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import java.sql.Connection;
@@ -56,10 +61,17 @@ public class EditorsDisplaySync {
         String rabbitPass = env("RABBIT_PASS", "guest");
 
         String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
-        String dbUser = env("DB_USER", "remote_user");
-        String dbPass = env("DB_PASS", "pstv1688");
 
-        java.sql.Connection db = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+        Map<String, String> dotenv = loadDotEnv();
+        String dbUser = dotenv.get("PWUSER");
+        String dbPass = dotenv.get("PWPWD");
+
+        if (dbUser == null || dbPass == null) {
+            throw new IllegalStateException(
+                    "PWUSER and/or PWPWD not found in ~/.env — refusing to connect without credentials.");
+        }
+
+        Connection db = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
         db.setAutoCommit(true);
         EditorsDisplaySync sync = new EditorsDisplaySync(db);
 
@@ -111,6 +123,32 @@ public class EditorsDisplaySync {
     private static String env(String key, String fallback) {
         String v = System.getenv(key);
         return (v == null || v.isBlank()) ? fallback : v;
+    }
+
+    //    helper for env file
+    private static Map<String, String> loadDotEnv() throws Exception {
+        Map<String, String> values = new HashMap<>();
+        Path path = Path.of(System.getProperty("user.home"), ".env");
+        if (!Files.exists(path)) {
+            System.err.println("[homepage-sync] no ~/.env found at " + path);
+            return values;
+        }
+        List<String> lines = Files.readAllLines(path);
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+            int eq = trimmed.indexOf('=');
+            if (eq < 0) continue;
+            String key = trimmed.substring(0, eq).trim();
+            String value = trimmed.substring(eq + 1).trim();
+            if (value.length() >= 2 &&
+                    ((value.startsWith("\"") && value.endsWith("\"")) ||
+                            (value.startsWith("'") && value.endsWith("'")))) {
+                value = value.substring(1, value.length() - 1);
+            }
+            values.put(key, value);
+        }
+        return values;
     }
 
     // ------------------------------------------------------------------

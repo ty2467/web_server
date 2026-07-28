@@ -4,11 +4,22 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="63173836-54a7-41de-9824-ae20820e3924" name="Changes" comment="" />
+    <list default="true" id="63173836-54a7-41de-9824-ae20820e3924" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../2home_page-mdwr/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/EditorsDisplaySync.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/EditorsDisplaySync.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../2home_page-mdwr/src/main/java/org/example/HomePageSync.java" beforeDir="false" afterPath="$PROJECT_DIR$/../2home_page-mdwr/src/main/java/org/example/HomePageSync.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../reader_back" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_back" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../reader_front" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_front" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../writer_back" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_back" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0,
@@ -27,6 +38,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "//wsl.localhost/Debian/home/basquiat/projects/web_server/2article_display_mdwr",
     "onboarding.tips.debug.path": "//wsl.localhost/Debian/home/basquiat/projects/web_server/consumer_editorsdb/src/main/java/org/example/Main.java",
@@ -90,7 +102,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/org/example/EditorsDisplaySync.java</url>
-          <line>144</line>
+          <line>182</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>

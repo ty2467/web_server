@@ -1,16 +1,20 @@
 package org.example;
 
-
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Second independent listener on the same exchange as consumer_editorsdb.
@@ -23,8 +27,9 @@ import java.sql.Timestamp;
  * EditorsDisplaySync and vice versa — that's the point.
  *
  * Run: java -jar homepage-sync-0.0.1.jar
- * Config: same five env vars as consumer_editorsdb (RABBIT_HOST,
- * RABBIT_PORT, RABBIT_USER, RABBIT_PASS, JDBC_URL/DB_USER/DB_PASS).
+ * Config: RABBIT_HOST, RABBIT_PORT, RABBIT_USER, RABBIT_PASS, JDBC_URL as
+ * env vars. DB credentials are NOT env vars — loaded from ~/.env
+ * (PWUSER / PWPWD) instead, see loadDotEnv() below.
  */
 public class HomePageSync {
 
@@ -47,8 +52,15 @@ public class HomePageSync {
         String rabbitPass = env("RABBIT_PASS", "guest");
 
         String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
-        String dbUser = env("DB_USER", "remote_user");
-        String dbPass = env("DB_PASS", "pstv1688");
+
+        Map<String, String> dotenv = loadDotEnv();
+        String dbUser = dotenv.get("PWUSER");
+        String dbPass = dotenv.get("PWPWD");
+
+        if (dbUser == null || dbPass == null) {
+            throw new IllegalStateException(
+                    "PWUSER and/or PWPWD not found in ~/.env — refusing to connect without credentials.");
+        }
 
         Connection db = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
         db.setAutoCommit(true);
@@ -93,6 +105,34 @@ public class HomePageSync {
     private static String env(String key, String fallback) {
         String v = System.getenv(key);
         return (v == null || v.isBlank()) ? fallback : v;
+    }
+
+    /** Minimal ~/.env parser — KEY=VALUE per line, '#' comments, blank
+     *  lines skipped, surrounding single/double quotes on the value
+     *  stripped. No dependency added for this; the file is tiny. */
+    private static Map<String, String> loadDotEnv() throws Exception {
+        Map<String, String> values = new HashMap<>();
+        Path path = Path.of(System.getProperty("user.home"), ".env");
+        if (!Files.exists(path)) {
+            System.err.println("[homepage-sync] no ~/.env found at " + path);
+            return values;
+        }
+        List<String> lines = Files.readAllLines(path);
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+            int eq = trimmed.indexOf('=');
+            if (eq < 0) continue;
+            String key = trimmed.substring(0, eq).trim();
+            String value = trimmed.substring(eq + 1).trim();
+            if (value.length() >= 2 &&
+                    ((value.startsWith("\"") && value.endsWith("\"")) ||
+                            (value.startsWith("'") && value.endsWith("'")))) {
+                value = value.substring(1, value.length() - 1);
+            }
+            values.put(key, value);
+        }
+        return values;
     }
 
     // ------------------------------------------------------------------
