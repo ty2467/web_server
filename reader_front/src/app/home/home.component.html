@@ -1,7 +1,7 @@
 <div class="container">
 
   <section class="top-lead-stack" *ngIf="layout.rotisserie">
-    <div class="lead-story" [routerLink]="['/article', topLeadArticle?.id]" [ngClass]="fadeState()" style="cursor:pointer;">
+    <div class="lead-story" [routerLink]="['/article', topLeadArticle?.slug]" [ngClass]="fadeState()" style="cursor:pointer;">
       <div class="lead-content">
         <span class="category">{{ topLeadArticle?.category }}</span>
         <h1>{{ topLeadArticle?.title }}</h1>
@@ -15,7 +15,7 @@
       </div>
 
       <div class="side-news">
-        <div class="side-article" *ngFor="let article of layout.rotisserie.sides" [routerLink]="['/article', article.id]">
+        <div class="side-article" *ngFor="let article of layout.rotisserie.sides" [routerLink]="['/article', article.slug]">
           <img *ngIf="article.image" [src]="article.image" class="side-image">
 
           <div class="side-text">
@@ -27,7 +27,7 @@
     </div>
 
     <section class="secondary-grid">
-      <div class="secondary-column" *ngFor="let article of layout.rotisserie.sections" [routerLink]="['/article', article.id]">
+      <div class="secondary-column" *ngFor="let article of layout.rotisserie.sections" [routerLink]="['/article', article.slug]">
         <div class="column-header">{{ article.category }}</div>
         <div class="secondary-card">
           <img *ngIf="article.image" [src]="article.image" class="secondary-image">
@@ -42,7 +42,7 @@
 
   <section class="major-container" *ngFor="let front of layout.majorFronts">
     <div class="top-news">
-      <div class="lead-story" [routerLink]="['/article', front.main.id]">
+      <div class="lead-story" [routerLink]="['/article', front.main.slug]">
         <div class="lead-content">
           <span class="category">{{ front.main.category }}</span>
           <h1>{{ front.main.title }}</h1>
@@ -57,7 +57,7 @@
       </div>
 
       <div class="side-news">
-        <div class="side-article" *ngFor="let s of front.sides" [routerLink]="['/article', s.id]">
+        <div class="side-article" *ngFor="let s of front.sides" [routerLink]="['/article', s.slug]">
           <img *ngIf="s.image" [src]="s.image" class="side-image">
           <div class="side-text">
             <span class="category small">{{ s.category }}</span>
@@ -68,7 +68,7 @@
     </div>
 
     <section class="secondary-grid">
-      <div class="secondary-column" *ngFor="let sec of front.sections" [routerLink]="['/article', sec.id]">
+      <div class="secondary-column" *ngFor="let sec of front.sections" [routerLink]="['/article', sec.slug]">
         <div class="column-header">{{ sec.category }}</div>
         <div class="secondary-card">
           <img *ngIf="sec.image" [src]="sec.image" class="secondary-image">
@@ -79,7 +79,7 @@
   </section>
 
   <section class="top-news half-front-unit" *ngFor="let half of layout.halfFronts">
-    <div class="lead-story" [routerLink]="['/article', half.main.id]">
+    <div class="lead-story" [routerLink]="['/article', half.main.slug]">
       <div class="lead-content">
         <span class="category">{{ half.main.category }}</span>
         <h3>{{ half.main.title }}</h3>
@@ -93,7 +93,7 @@
     </div>
 
     <div class="side-news">
-      <div class="side-article" *ngFor="let s of half.sides" [routerLink]="['/article', s.id]">
+      <div class="side-article" *ngFor="let s of half.sides" [routerLink]="['/article', s.slug]">
         <img *ngIf="s.image" [src]="s.image" class="side-image">
         <div class="side-text">
           <span class="category small">{{ s.category }}</span>
@@ -107,7 +107,7 @@
     <div class="secondary-grid">
       <div class="secondary-column" *ngFor="let col of row">
         <div class="column-header">{{ col.category }}</div>
-        <div class="secondary-card matrix-item" *ngFor="let art of col.articles" [routerLink]="['/article', art.id]">
+        <div class="secondary-card matrix-item" *ngFor="let art of col.articles" [routerLink]="['/article', art.slug]">
           <img *ngIf="art.image" [src]="art.image" class="secondary-image">
           <h3>{{ art.title }}</h3>
         </div>

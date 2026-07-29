@@ -21,7 +21,7 @@ public class SpringBootTutorialApplication {
         SpringApplication.run(SpringBootTutorialApplication.class, args);
     }
 }
-    
+
 class MediaDTO {
     public String url;
     public String type;
@@ -53,6 +53,7 @@ class ParagraphDTO {
 }
 class Article {
     public String id;
+    public String slug;
     public String title;
     public String summary;
     public String image;
@@ -95,82 +96,6 @@ class PageDataDTO {
 
 
 
-/*
-*  ArticlePage's DTO
-* */
-
-class ArticleDTO {
-    private String id;
-    private String title;
-//    private String image;//url
-    //other fields
-    private String summary;
-    private String category;
-//    private String video;//url
-    private List<Object> content;
-
-    // We keep these fields so your existing Getters/Setters don't break (Fixes symbol errors)
-    private List<String> paragraphs;
-    private List<MediaDTO> media;
-    public ArticleDTO() {}
-
-    /**
-     * for article actual.
-     * */
-    public ArticleDTO(String id, String title,List<String> paragraphs) {
-        this.id = id;
-        this.title = title;
-        this.paragraphs = paragraphs;
-    }
-
-    /**
-     * for other articles.
-     *
-     * @param id
-     * @param title
-     * @param image
-     * @param summary
-     * @param category
-     * @param video
-     */
-    public ArticleDTO(String id, String title, String summary, String category) {
-        this.id = id;
-        this.title = title;
-        /**
-         * constructing data gets passed in during definition.
-         * */
-        this.summary = summary;
-        this.category = category;
-    }
-
-    // Getters and Setters
-    public String getId() { return id; }
-    public void  setId(String id) { this.id = id; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-
-    //get and set functions for the summary, category, and video url fields.
-    public String getSummary() { return summary; }
-    public void setSummary(String title) { this.summary = summary; }
-
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-
-    public List<String> getParagraphs() { return paragraphs; }
-    public void setParagraphs(List<String> paragraphs) { this.paragraphs = paragraphs; }
-
-    public List<MediaDTO> getMedia() { return media; }
-    public void setMedia(List<MediaDTO> media) { this.media = media; }
-
-    public List<Object> getContent() { return content; }
-    public void setContent(List<Object> content) { this.content = content; }
-}
-class ArticlePageDTO {
-    public ArticleDTO mainArticle;
-    public List<ArticleDTO> suggestedArticles;
-}
 
 @RestController
 @RequestMapping("/api")
@@ -182,36 +107,7 @@ class NewsController {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @GetMapping("/articles/{id}")
-    public ArticlePageDTO getArticlePageData(@PathVariable String id) {
-        ArticlePageDTO articleData = new ArticlePageDTO();
 
-        // 1. Fetch the Main Article
-        // We use the specific constructor: id, title, image, paragraphs
-        String mainSql = "SELECT * FROM news_articles WHERE id = ?";
-        List<ArticleDTO> mainResults = queryArticleDTOs(mainSql, id);
-
-        if (!mainResults.isEmpty()) {
-            articleData.mainArticle = mainResults.get(0);
-        }
-
-        // 2. Fetch Suggested Articles (excluding the current one)
-        // We use the constructor: id, title, image, summary, category, video
-        // randomized.
-        String suggestedSql = """
-            SELECT * FROM (
-                SELECT * FROM news_articles
-                WHERE id != ?
-                ORDER BY date_time DESC
-                LIMIT 50
-            ) AS recent_pool
-            ORDER BY RAND()
-            LIMIT 4
-        """;
-        articleData.suggestedArticles = queryArticleDTOs(suggestedSql, id);
-
-        return articleData;
-    }
 
     //    Read5
     @GetMapping("/home-page")
@@ -230,7 +126,11 @@ class NewsController {
         // NULL handling is done with `IS NULL` sort keys instead of
         // COALESCE: no sentinel values, and intra_section_zone keeps its
         // real numeric ordering rather than being compared against 99.
-        String sql = "SELECT id, title, dek, category, section_zone, intra_section_zone, cover_media_url " +
+        //
+        // slug added to the select list — this is what routerLinks on the
+        // frontend now navigate with, instead of the raw home_page/
+        // editors_db id. See Article.slug and queryArticles() below.
+        String sql = "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url " +
                 "FROM home_page " +
                 "ORDER BY " +
                 "  section_zone IS NULL, " +
@@ -274,50 +174,7 @@ class NewsController {
 //        return data;
 //    }
 
-    /**
-     * SQL query helper for ArticlePageDTO.
-     * Maps the database result set to the overloaded ArticleDTO.
-     */
-    private List<ArticleDTO> queryArticleDTOs(String sql, Object... args) {
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            ArticleDTO dto = new ArticleDTO();
-            String articleId = String.valueOf(rs.getLong("id"));
 
-            dto.setId(articleId);
-            dto.setTitle(rs.getString("title"));
-            dto.setSummary(rs.getString("summary"));
-            dto.setCategory(rs.getString("category"));
-
-            // 1. Fetch Paragraphs
-            List<ParagraphDTO> paragraphs = jdbcTemplate.query(
-                    "SELECT paragraph_text, order_id FROM article_paragraphs WHERE article_id = ?",
-                    (pr, pNum) -> new ParagraphDTO(pr.getString("paragraph_text"), pr.getInt("order_id")),
-                    articleId
-            );
-
-            // 2. Fetch Media
-            List<MediaDTO> media = jdbcTemplate.query(
-                    "SELECT media_url, media_type, order_id FROM article_media WHERE article_id = ?",
-                    (mr, mNum) -> new MediaDTO(mr.getString("media_url"), mr.getString("media_type"), mr.getInt("order_id")),
-                    articleId
-            );
-
-            // 3. Combine and Sort
-            List<Object> allContent = new ArrayList<>();
-            allContent.addAll(paragraphs);
-            allContent.addAll(media);
-
-            // Sort by orderId
-            allContent.sort((a, b) -> {
-                int orderA = (a instanceof ParagraphDTO) ? ((ParagraphDTO) a).orderId : ((MediaDTO) a).orderId;
-                int orderB = (b instanceof ParagraphDTO) ? ((ParagraphDTO) b).orderId : ((MediaDTO) b).orderId;
-                return Integer.compare(orderA, orderB);
-            });
-
-            dto.setContent(allContent);
-            return dto;
-        }, args);
-    }
 
     //  Read5
     private List<Article> queryArticles(String sql, Object... args) {
@@ -325,6 +182,7 @@ class NewsController {
             Article a = new Article();
             String articleId = String.valueOf(rs.getLong("id"));
             a.id = articleId;
+            a.slug = rs.getString("slug");
             a.title = rs.getString("title");
             a.summary = rs.getString("dek");        // home_page.dek -> Article.summary
             a.category = rs.getString("category");

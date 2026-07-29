@@ -14,6 +14,7 @@ import java.sql.Timestamp;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -25,6 +26,12 @@ import java.util.Map;
  * Fan-out is free here: same exchange (editors_db.events), a second
  * independent queue bound to it. This listener knows nothing about
  * EditorsDisplaySync and vice versa — that's the point.
+ *
+ * slug is the one exception to "knows nothing about EditorsDisplaySync":
+ * buildSlug()/slugify() below are a deliberate byte-for-byte duplicate of
+ * EditorsDisplaySync's, so both listeners independently compute the same
+ * slug for the same editors_db row with no coordination, no DB round-trip,
+ * and no dependency on which listener processes a given message first.
  *
  * Run: java -jar homepage-sync-0.0.1.jar
  * Config: RABBIT_HOST, RABBIT_PORT, RABBIT_USER, RABBIT_PASS, JDBC_URL as
@@ -146,10 +153,17 @@ public class HomePageSync {
             return;
         }
 
+        String slug = buildSlug(src.title, src.id);
+
+        // slug is deliberately left OUT of the ON DUPLICATE KEY UPDATE list:
+        // it's set once, on first insert (VALUES(...) branch), and frozen
+        // after that — same as article_display's slug — so a link already
+        // generated from home_page never points at a slug that's since
+        // changed underneath it.
         try (PreparedStatement ps = db.prepareStatement(
                 "INSERT INTO home_page " +
-                        "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, cover_media_url) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?) " +
+                        "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, cover_media_url, slug) " +
+                        "VALUES (?,?,?,?,?,?,?,?,?,?) " +
                         "ON DUPLICATE KEY UPDATE " +
                         "  title=VALUES(title), dek=VALUES(dek), author=VALUES(author), " +
                         "  category=VALUES(category), date_time=VALUES(date_time), " +
@@ -165,6 +179,7 @@ public class HomePageSync {
             if (src.intraSectionZone != null) ps.setInt(8, src.intraSectionZone);
             else ps.setNull(8, java.sql.Types.TINYINT);
             ps.setString(9, src.leadImageUrl);  // -> cover_media_url
+            ps.setString(10, slug);
             ps.executeUpdate();
         }
     }
@@ -185,6 +200,22 @@ public class HomePageSync {
                 );
             }
         }
+    }
+
+    // Byte-for-byte identical to EditorsDisplaySync's buildSlug()/slugify()
+    // — see that file's comment on why this is deterministic and safely
+    // duplicated rather than shared.
+    private static String buildSlug(String title, long editorsDbId) {
+        return slugify(title) + "-" + editorsDbId;
+    }
+
+    private static String slugify(String title) {
+        if (title == null || title.isBlank()) return "article";
+        String s = title.toLowerCase(Locale.ROOT).trim();
+        s = s.replaceAll("[^a-z0-9\\u4e00-\\u9fa5]+", "-");
+        s = s.replaceAll("(^-+|-+$)", "");
+        if (s.length() > 180) s = s.substring(0, 180);
+        return s.isEmpty() ? "article" : s;
     }
 
     private record Row(

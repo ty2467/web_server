@@ -15,6 +15,7 @@ interface StockQuote {
 
 export interface Article {
   id: string;
+  slug: string;
   title: string;
   summary: string;
   image?: string;

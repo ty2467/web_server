@@ -31,6 +31,7 @@ public class EditorsDbEventPublisher {
         Connection conn = null;
         Channel ch = null;
         try {
+            System.out.println("activated");
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost(host);
             factory.setPort(port);
@@ -51,6 +52,7 @@ public class EditorsDbEventPublisher {
 
     /** op is "insert" or "update" — becomes the routing key suffix. */
     public void publish(long editorsDbId, String op) {
+        System.out.println("publish hit");
         if (channel == null) return; // never connected; already logged at startup
 
         String routingKey = "editors_db." + op;

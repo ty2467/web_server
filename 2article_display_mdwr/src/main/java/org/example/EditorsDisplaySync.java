@@ -65,12 +65,13 @@ public class EditorsDisplaySync {
         Map<String, String> dotenv = loadDotEnv();
         String dbUser = dotenv.get("PWUSER");
         String dbPass = dotenv.get("PWPWD");
-
+        System.out.println(dbUser);
+        System.out.println(dbPass);
         if (dbUser == null || dbPass == null) {
             throw new IllegalStateException(
                     "PWUSER and/or PWPWD not found in ~/.env — refusing to connect without credentials.");
         }
-
+        System.out.println("Connecting to: " + jdbcUrl);
         Connection db = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
         db.setAutoCommit(true);
         EditorsDisplaySync sync = new EditorsDisplaySync(db);
@@ -201,14 +202,18 @@ public class EditorsDisplaySync {
                 && !normalizeForCompare(priorBlocksJson).equals(normalizeForCompare(blocksJson));
 
         if (existingId == null) {
-            String slug = uniqueSlug(src.title, editorsDbId);
+            String slug = buildSlug(src.title, editorsDbId);
+            // MariaDB has no CAST(... AS JSON) — that's MySQL-only syntax.
+            // content_blocks is a JSON-aliased LONGTEXT column here, so a
+            // plain string bind is all that's needed; MariaDB validates it
+            // against JSON_VALID() itself.
             try (PreparedStatement ps = db.prepareStatement(
                     "INSERT INTO article_display " +
                             "(slug, editors_db_id, headline, dek, category, author_name, " +
                             " published_at, revised_at, lead_image_url, lead_image_alt, " +
                             " lead_image_caption, lead_image_credit, content_blocks, state, " +
                             " word_count, reading_time_minutes) " +
-                            "VALUES (?,?,?,?,?,?,?,NULL,?,NULL,?,NULL,CAST(? AS JSON),'published',?,?)")) {
+                            "VALUES (?,?,?,?,?,?,?,NULL,?,NULL,?,NULL,?,'published',?,?)")) {
                 ps.setString(1, slug);
                 ps.setLong(2, editorsDbId);
                 ps.setString(3, src.title);
@@ -228,7 +233,7 @@ public class EditorsDisplaySync {
                     "UPDATE article_display SET " +
                             " headline=?, dek=?, category=?, author_name=?, " +
                             " lead_image_url=?, lead_image_caption=?, " +
-                            " content_blocks=CAST(? AS JSON), word_count=?, reading_time_minutes=?, revised_at=? " +
+                            " content_blocks=?, word_count=?, reading_time_minutes=?, revised_at=? " +
                             "WHERE editors_db_id=?")) {
                 ps.setString(1, src.title);
                 ps.setString(2, src.summary);
@@ -428,19 +433,17 @@ public class EditorsDisplaySync {
         }
     }
 
-    private String uniqueSlug(String title, long editorsDbId) throws SQLException {
-        String base = slugify(title);
-        try (PreparedStatement ps = db.prepareStatement(
-                "SELECT COUNT(*) FROM article_display WHERE slug = ?")) {
-            ps.setString(1, base);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getInt(1) == 0 ? base : base + "-" + editorsDbId;
-            }
-        }
+    // Deterministic — pure function of (title, editorsDbId), no DB lookup.
+    // editorsDbId is already globally unique (editors_db auto-increment PK),
+    // so always suffixing it guarantees a unique slug with zero collision
+    // risk, and lets HomePageSync compute the exact same string on its own
+    // without either listener knowing about the other or needing any
+    // message-ordering guarantee between them.
+    private static String buildSlug(String title, long editorsDbId) {
+        return slugify(title) + "-" + editorsDbId;
     }
 
-    private String slugify(String title) {
+    private static String slugify(String title) {
         if (title == null || title.isBlank()) return "article";
         String s = title.toLowerCase(Locale.ROOT).trim();
         s = s.replaceAll("[^a-z0-9\\u4e00-\\u9fa5]+", "-");

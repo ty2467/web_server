@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;  
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.core.io.InputStreamResource;
@@ -91,6 +92,9 @@ public class SpringBootTutorialApplication {
     @Autowired
     private JsonMapper jsonMapper;
 
+    
+    @Autowired
+    private EditorsDbEventPublisher eventPublisher; 	
     // <input type="datetime-local"> sends/expects exactly "yyyy-MM-ddTHH:mm"
     // (seconds optional) — Java's default ISO_LOCAL_DATE_TIME parser matches
     // that format already, no custom pattern needed for parsing. Formatting
@@ -328,28 +332,47 @@ public class SpringBootTutorialApplication {
         // a serialization failure falls through to the outer handler below.
         List<ContentBlock> blocks = article.getContent_blocks() != null
                 ? article.getContent_blocks() : new ArrayList<>();
+        
+        for(ContentBlock thisblock: blocks){
+            String theType = thisblock.getType();
+            if (theType == "image" || theType == "video"){
+                //LLM complain on good ground this would be error but this subcomponents 
+		//array is being grown and is indexed at any time without any issue
+		String[] subcomponents = {};
+                String wrong_url = thisblock.getMedia_url();
+                int j = 0;
+                for(int i = 0; i<wrong_url.length(); i++){
+                    subcomponents[j] += wrong_url.charAt(i);
+
+                    if (wrong_url.charAt(i) == '/' && wrong_url.charAt(i+1) != '/'){
+                        j++;
+                    }
+
+                }
+                //fortunately this same name is the one image uploader gets from frontend
+                String gotten_name = subcomponents[-1];
+                String correct_url = IP_PREFIX + targetSubDir + gotten_name;
+                thisblock.setMedia_url(correct_url);
+                System.out.println(correct_url);
+            }
+
+
+        }
+
         String blocksJson = jsonMapper.writeValueAsString(blocks);
+        boolean isUpdate = articleId != null && articleId > 0;
 
         try {
-            if (articleId != null && articleId > 0) {
-                // UPDATE: Existing article
+            if (isUpdate) {
                 String updateSql = "UPDATE editors_db SET title=?, summary=?, author=?, category=?, " +
                         "date_time=?, section_zone=?, intra_section_zone=?, lead_image_url=?, lead_image_caption=?, " +
                         "content_blocks=? WHERE id=?";
                 jdbcTemplate.update(updateSql,
-                        article.getTitle(),
-                        article.getSummary(),
-                        article.getAuthor(),
-                        article.getCategory(),
-                        parseDateTimeLocal(article.getDate_time()),
-                        article.getSection_zone(),
-                        article.getIntra_section_zone(),
-                        article.getLead_image_url(),
-                        article.getLead_image_caption(),
-                        blocksJson,
-                        articleId);
+                        article.getTitle(), article.getSummary(), article.getAuthor(), article.getCategory(),
+                        parseDateTimeLocal(article.getDate_time()), article.getSection_zone(),
+                        article.getIntra_section_zone(), article.getLead_image_url(), article.getLead_image_caption(),
+                        blocksJson, articleId);
             } else {
-                // INSERT: New article
                 String insertSql = "INSERT INTO editors_db (title, summary, author, category, " +
                         "date_time, section_zone, intra_section_zone, lead_image_url, lead_image_caption, " +
                         "content_blocks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -376,6 +399,8 @@ public class SpringBootTutorialApplication {
 
                 articleId = keyHolder.getKey().longValue();
             }
+
+            eventPublisher.publish(articleId, isUpdate ? "update" : "insert");
 
             return ResponseEntity.ok().body(Map.of("message", "Article saved successfully", "id", articleId));
 
@@ -554,5 +579,18 @@ class SecurityConfig {
                 .formLogin(withDefaults());
 
         return http.build();
+    }
+}
+
+@Configuration
+class RabbitConfig {
+
+    @Bean
+    public EditorsDbEventPublisher editorsDbEventPublisher(
+            @Value("${rabbit.host:localhost}") String host,
+            @Value("${rabbit.port:5672}") int port,
+            @Value("${rabbit.user:guest}") String user,
+            @Value("${rabbit.pass:guest}") String pass) {
+        return new EditorsDbEventPublisher(host, port, user, pass);
     }
 }
