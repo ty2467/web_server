@@ -148,32 +148,32 @@ class NewsController {
         return data;
     }
 //read5
-//    @GetMapping("/category/{name}")
-//    public PageDataDTO getCategoryPageData(@PathVariable String name) {
-//        PageDataDTO data = new PageDataDTO();
-//
-//        // 1. Maintain consistent Navigation
-//        data.menuItems = jdbcTemplate.queryForList(
-//                "SELECT DISTINCT category FROM news_articles WHERE category IS NOT NULL LIMIT 7",
-//                String.class
-//        );
-//
-//        data.bannerText = "Explore: " + name;
-//
-//        // 2. Fetch the pool for this specific category
-//        // We fetch a larger set (e.g., 50) so the frontend has enough to fill the layout
-//        String categorySql = "SELECT * FROM news_articles WHERE category = ? ORDER BY date_time DESC LIMIT 50";
-//        List<Article> categoryArticles = queryArticles(categorySql, name);
-//
-//        // 3. Apply the "Home Page Formula"
-//        // We put the results into the categorizedPool map using the category name as the key.
-//        // The frontend can now iterate through this map just like it does on the home page.
-//        data.categorizedPool = new LinkedHashMap<>();
-//        data.categorizedPool.put(name, categoryArticles);
-//
-//        return data;
-//    }
+    @GetMapping("/category/{name}")
+    public PageDataDTO getCategoryPageData(@PathVariable String name) {
+        PageDataDTO data = new PageDataDTO();
 
+        data.menuItems = jdbcTemplate.queryForList(
+                "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
+        data.bannerText = "Latest in " + name;
+
+        // Same linear-ingestion contract as /home-page, scoped to one category.
+        // major_front/rotisserie rows are pulled to the front so the frontend
+        // engine can build the single MajorFrontUnit before falling through
+        // to the Reuters-style row feed.
+        String sql = "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url " +
+                "FROM home_page " +
+                "WHERE category = ? " +
+                "ORDER BY " +
+                "  CASE WHEN section_zone IN ('major_front', 'rotisserie') THEN 0 ELSE 1 END, " +
+                "  intra_section_zone IS NULL, " +
+                "  intra_section_zone ASC, " +
+                "  date_time DESC " +
+                "LIMIT 100";
+
+        data.articlePool = queryArticles(sql, name);
+
+        return data;
+    }
 
 
     //  Read5

@@ -44,6 +44,7 @@ class ArticleDetailController {
 
     @GetMapping("/articles/{slug}")
     public ResponseEntity<ArticleDetailDTO> getArticle(@PathVariable String slug) {
+        System.out.println("any activation");
         List<ArticleDetailDTO> rows = jdbcTemplate.query(
                 "SELECT * FROM article_display WHERE slug = ? AND state = 'published'",
                 (rs, rowNum) -> {
@@ -61,7 +62,7 @@ class ArticleDetailController {
                     dto.state = rs.getString("state");
                     dto.readingTimeMinutes = rs.getInt("reading_time_minutes");
                     dto.blocks = rs.getString("content_blocks"); // already display-shape JSON, embedded raw
-
+                    System.out.println("basic construction terminal point reached");
                     String leadUrl = rs.getString("lead_image_url");
                     if (leadUrl != null) {
                         LeadImageDTO lead = new LeadImageDTO();
@@ -70,7 +71,10 @@ class ArticleDetailController {
                         lead.caption = rs.getString("lead_image_caption");
                         lead.credit = rs.getString("lead_image_credit");
                         dto.leadImage = lead;
+
                     }
+                    System.out.println("dto return reached");
+                    System.out.println(dto);
                     return dto;
                 }, slug
         );

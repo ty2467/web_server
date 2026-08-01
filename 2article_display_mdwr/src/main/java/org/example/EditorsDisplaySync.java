@@ -60,8 +60,10 @@ public class EditorsDisplaySync {
         String rabbitUser = env("RABBIT_USER", "guest");
         String rabbitPass = env("RABBIT_PASS", "guest");
 
-        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
 
+
+        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
         Map<String, String> dotenv = loadDotEnv();
         String dbUser = dotenv.get("PWUSER");
         String dbPass = dotenv.get("PWPWD");
@@ -440,7 +442,7 @@ public class EditorsDisplaySync {
     // without either listener knowing about the other or needing any
     // message-ordering guarantee between them.
     private static String buildSlug(String title, long editorsDbId) {
-        return slugify(title) + "-" + editorsDbId;
+        return slugify(title);
     }
 
     private static String slugify(String title) {

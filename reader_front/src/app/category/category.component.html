@@ -1,0 +1,55 @@
+<div class="container">
+
+  <!-- Copied 1:1 from home's major_front geometry — one instance only -->
+  <section class="top-news" *ngIf="majorFront">
+    <div class="lead-story" [routerLink]="['/article', majorFront.main.slug]">
+      <div class="lead-content">
+        <span class="category">{{ majorFront.main.category }}</span>
+        <h1>{{ majorFront.main.title }}</h1>
+        <p>{{ majorFront.main.summary }}</p>
+      </div>
+      <div class="media-wrapper">
+        @defer (on viewport) {
+        <img [src]="majorFront.main.image" class="hero-media" alt="category lead image">
+        } @placeholder { <div class="media-skeleton"></div> }
+      </div>
+    </div>
+
+    <div class="side-news">
+      <div class="side-article" *ngFor="let s of majorFront.sides" [routerLink]="['/article', s.slug]">
+        <img *ngIf="s.image" [src]="s.image" class="side-image">
+        <div class="side-text">
+          <span class="category small">{{ s.category }}</span>
+          <h4>{{ s.title }}</h4>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="secondary-grid" *ngIf="majorFront?.sections?.length">
+    <div class="secondary-column" *ngFor="let sec of majorFront!.sections" [routerLink]="['/article', sec.slug]">
+      <div class="secondary-card">
+        <img *ngIf="sec.image" [src]="sec.image" class="secondary-image">
+        <h3>{{ sec.title }}</h3>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider" *ngIf="rows.length">
+
+  <!-- Reuters-style feed: text left, image right, infinite rows -->
+  <section class="row-feed">
+    <a class="feed-row" *ngFor="let art of rows" [routerLink]="['/article', art.slug]">
+      <div class="feed-text">
+        <span class="category">{{ art.category }}</span>
+        <h3>{{ art.title }}</h3>
+        <p>{{ art.summary }}</p>
+      </div>
+      <div class="feed-media">
+        <img *ngIf="art.image" [src]="art.image" class="feed-image" alt="row image">
+      </div>
+    </a>
+  </section>
+
+  <router-outlet></router-outlet>
+</div>

@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal, effect } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { Title, Meta } from '@angular/platform-browser';
 import { Article, ARTICLE_SCHEMA_VERSION } from './article.model';
 
@@ -15,6 +16,8 @@ export class ArticleDetailComponent {
   private title = inject(Title);
   private meta = inject(Meta);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
 
   article = signal<Article | null>(null);
   suggestedArticles = signal<Array<Pick<Article, 'slug' | 'headline'>>>([]);
@@ -28,6 +31,17 @@ export class ArticleDetailComponent {
   });
 
   constructor() {
+    // Populate from whatever the route resolver already fetched — no
+    // duplicate request here, this just reads the resolved value.
+    this.route.data.subscribe(data => {
+      const resolved = data['article'] as Article | null;
+      this.article.set(resolved);
+      console.log(resolved);
+      if (resolved) {
+        this.fetchSuggested(resolved.slug);
+      }
+    });
+
     effect(() => {
       const a = this.article();
       if (!a) return;
@@ -45,6 +59,17 @@ export class ArticleDetailComponent {
       }
       this.setCanonical(a.canonicalUrl);
     });
+  }
+
+  /** Secondary, non-blocking — the article itself must still render if
+   *  this fails, so it's fetched here rather than in the route resolver. */
+  private fetchSuggested(slug: string): void {
+    this.http
+      .get<Array<Pick<Article, 'slug' | 'headline'>>>(`/api/articles/${slug}/suggested`)
+      .subscribe({
+        next: list => this.suggestedArticles.set(list),
+        error: err => console.error('suggested articles fetch failed', err),
+      });
   }
 
   goToArticle(slug: string): void {
