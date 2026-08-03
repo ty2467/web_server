@@ -58,8 +58,9 @@ public class HomePageSync {
         String rabbitUser = env("RABBIT_USER", "guest");
         String rabbitPass = env("RABBIT_PASS", "guest");
 
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
-        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web"); 123.189
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
+        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.189:3306/phoenix_web");
 
         Map<String, String> dotenv = loadDotEnv();
         String dbUser = dotenv.get("PWUSER");
@@ -96,7 +97,12 @@ public class HomePageSync {
             try {
                 JsonNode msg = mapper.readTree(delivery.getBody());
                 long editorsDbId = msg.get("id").asLong();
-                sync.syncOne(editorsDbId);
+                String op = msg.hasNonNull("op") ? msg.get("op").asText() : "upsert";
+                if ("delete".equals(op)) {
+                    sync.deleteOne(editorsDbId);
+                } else {
+                    sync.syncOne(editorsDbId);
+                }
                 channel.basicAck(deliveryTag, false);
             } catch (Exception e) {
                 System.err.println("[homepage-sync] failed on message, requeueing once: " + e);
@@ -182,6 +188,19 @@ public class HomePageSync {
             ps.setString(9, src.leadImageUrl);  // -> cover_media_url
             ps.setString(10, slug);
             ps.executeUpdate();
+        }
+    }
+
+    //---deletion method
+    public void deleteOne(long editorsDbId) throws Exception {
+        try (PreparedStatement ps = db.prepareStatement(
+                "DELETE FROM home_page WHERE id = ?")) {
+            ps.setLong(1, editorsDbId);
+            int deleted = ps.executeUpdate();
+            if (deleted == 0) {
+                System.err.println("[homepage-sync] delete for editors_db id=" + editorsDbId +
+                        " — no matching home_page row");
+            }
         }
     }
 

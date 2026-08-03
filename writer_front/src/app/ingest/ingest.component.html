@@ -3,32 +3,41 @@
     <form [formGroup]="metaForm" (ngSubmit)="submit()">
 
       <header class="editor-header">
+        <label>标题</label>
         <input type="text" formControlName="title" class="title-input" placeholder="Title">
+
+        <label>副标题</label>
         <textarea formControlName="summary" class="summary-input" placeholder="Write a subtitle..."></textarea>
 
         <div class="meta-row">
           <div class="meta-field">
-            <label>Author</label>
+            <label>作者</label>
             <input type="text" formControlName="author" placeholder="Writer Name">
           </div>
           <div class="meta-field">
-            <label>Category</label>
+            <label>分类</label>
             <select formControlName="category">
-              <option value="">— Select —</option>
+              <option value="">— 选择 —</option>
               <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
             </select>
           </div>
           <div class="meta-field">
-            <label>Publish Date</label>
+            <label>发布时间</label>
             <input type="datetime-local" formControlName="date_time">
           </div>
           <div class="meta-field">
-            <label>Section Zone</label>
-            <input type="text" formControlName="section_zone" placeholder="e.g. front, opinion">
+            <label>位置</label>
+            <select formControlName="section_zone">
+              <option value="">— 选择 —</option>
+              <option *ngFor="let opt of sectionZoneOptions" [value]="opt.value">{{ opt.label }}</option>
+            </select>
           </div>
           <div class="meta-field">
-            <label>Intra-Section Zone</label>
-            <input type="number" formControlName="intra_section_zone" min="0" max="255">
+            <label>排列</label>
+            <select formControlName="intra_section_zone" [disabled]="intraSectionZoneDisabled">
+              <option [ngValue]="null">— 选择 —</option>
+              <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+            </select>
           </div>
         </div>
 

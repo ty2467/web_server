@@ -80,6 +80,16 @@ export class IngestComponent implements OnInit, OnDestroy {
       lead_image_caption: new FormControl('')
     });
 
+    // Keep 排列 (intra_section_zone) in sync with 位置 (section_zone): whenever
+    // the zone changes to something that doesn't offer the currently-selected
+    // permutation (or offers none at all — column/no zone), clear it instead
+    // of leaving a now-invalid stored number sitting in the form.
+    this.metaForm.get('section_zone')!.valueChanges.subscribe(() => {
+      const intraCtrl = this.metaForm.get('intra_section_zone')!;
+      const stillValid = this.intraSectionZoneOptions.some(opt => opt.value === intraCtrl.value);
+      if (!stillValid) intraCtrl.setValue(null);
+    });
+
     this.route.queryParams.subscribe((params: Params) => {
       this.clearAllBlocks();
       const idFromUrl = params['edit'];
@@ -107,8 +117,43 @@ export class IngestComponent implements OnInit, OnDestroy {
   // Fixed publication categories — the template renders these as a dropdown
   // so editors can't free-type a variant that won't match on the read side.
   readonly categories: string[] = [
-    '美洲头条', '美国观察', '工商新闻', '天天话题', '非常美洲', '精英访谈'
+    '美洲头条', '美国观察', '工商新闻', '天天话题', '非常美洲', '精英访谈', 'CES 国际消费电子展'
   ];
+
+  // ===========================================================================
+  // 位置 (section_zone) / 排列 (intra_section_zone) — display config.
+  // Stored values are stable English keys / fixed numbers; only the labels
+  // shown in the dropdowns are Chinese. This keeps the DB-facing shape of
+  // metaForm untouched while making the UI unambiguous to click through.
+  // ===========================================================================
+
+  readonly sectionZoneOptions: { value: string; label: string }[] = [
+    { value: 'main',     label: '主页' },   // zhu ye — main page
+    { value: 'sub_main',  label: '次主页' }, // ci zhu ye — major front
+    { value: 'tertiary',  label: '三版' },   // san ban — half front
+    { value: 'column',    label: '栏目' }    // lan mu — columns
+  ];
+
+  // Fixed numeric encoding, independent of which subset is offered:
+  // 0 = center, 1 = side, 2 = bottom.
+  private readonly intraFull: { value: number; label: string }[] = [
+    { value: 0, label: '中心' }, // zhong xin — center
+    { value: 1, label: '侧' },   // ce — side
+    { value: 2, label: '底' }    // di — bottom
+  ];
+  private readonly intraNoBottom = this.intraFull.slice(0, 2); // center, side only
+
+  get intraSectionZoneOptions(): { value: number; label: string }[] {
+    const zone = this.metaForm?.get('section_zone')?.value;
+    if (zone === 'main' || zone === 'sub_main') return this.intraFull;
+    if (zone === 'tertiary') return this.intraNoBottom;
+    return []; // no zone selected yet, or 'column' — field is disabled
+  }
+
+  get intraSectionZoneDisabled(): boolean {
+    const zone = this.metaForm?.get('section_zone')?.value;
+    return !zone || zone === 'column';
+  }
 
   get lastBlockId(): string | null {
     return this.blocks.length ? this.blocks[this.blocks.length - 1].localId : null;

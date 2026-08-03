@@ -62,8 +62,8 @@ public class EditorsDisplaySync {
 
 //        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
 
-
-        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
+        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.189:3306/phoenix_web");
         Map<String, String> dotenv = loadDotEnv();
         String dbUser = dotenv.get("PWUSER");
         String dbPass = dotenv.get("PWPWD");
@@ -103,7 +103,12 @@ public class EditorsDisplaySync {
             try {
                 JsonNode msg = mapper.readTree(delivery.getBody());
                 long editorsDbId = msg.get("id").asLong();
-                sync.syncOne(editorsDbId);
+                String op = msg.hasNonNull("op") ? msg.get("op").asText() : "upsert";
+                if ("delete".equals(op)) {
+                    sync.deleteOne(editorsDbId);
+                } else {
+                    sync.syncOne(editorsDbId);
+                }
                 channel.basicAck(deliveryTag, false);
             } catch (Exception e) {
                 System.err.println("[sync] failed on message, requeueing once: " + e);
@@ -116,6 +121,8 @@ public class EditorsDisplaySync {
                 channel.basicNack(deliveryTag, false, !alreadyRedelivered);
             }
         };
+
+
 
         channel.basicConsume(QUEUE, /* autoAck */ false, onMessage, tag -> {});
 
@@ -263,6 +270,19 @@ public class EditorsDisplaySync {
                 ps.setString(6, leadCaption);
                 ps.setLong(7, editorsDbId);
                 ps.executeUpdate();
+            }
+        }
+    }
+
+    //---deletion method
+    public void deleteOne(long editorsDbId) throws SQLException {
+        try (PreparedStatement ps = db.prepareStatement(
+                "DELETE FROM article_display WHERE editors_db_id = ?")) {
+            ps.setLong(1, editorsDbId);
+            int deleted = ps.executeUpdate();
+            if (deleted == 0) {
+                System.out.println("[sync] delete for editors_db id=" + editorsDbId +
+                        " — no matching article_display row");
             }
         }
     }

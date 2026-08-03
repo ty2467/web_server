@@ -308,6 +308,11 @@ public class SpringBootTutorialApplication {
 
         try {
             int rowsAffected = jdbcTemplate.update(sql, ids.toArray());
+
+            for (Long id : ids) {
+                eventPublisher.publish(id, "delete");
+            }
+
             return ResponseEntity.ok().body(Map.of(
                     "message", "Successfully deleted articles",
                     "count", rowsAffected
