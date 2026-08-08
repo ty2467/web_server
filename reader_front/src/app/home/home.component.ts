@@ -137,6 +137,20 @@ export class HomeComponent implements OnInit, OnDestroy {
           else if (art.intra_section_zone === 3) this.layout.rotisserie.sections.push(art);
           break;
 
+          /*
+          * like what even is a current_major. i didn't get the intent.
+          * it is an extremely roundabout way to select the top of the ==1
+          * stack for when a side or bottom arrives, and its hope on a well
+          * formed major-front is hinged on major front half front and bottom
+          * in that order without anything in between, or its a side and bottom rewrite
+          * ,. or entire front rewrite, and then append again .
+
+          * its like this gemini wrote a casino game embedded into my code
+          *
+          * it is fine and within normal behavior for an LLM to do this, but it is
+          * haunting that this is used as a coding tool
+          * thank God Claude exists.
+          * */
         case 'major_front':
           if (art.intra_section_zone === 1) {
             this.layout.majorFronts.push({ main: art, sides: [], sections: [] });

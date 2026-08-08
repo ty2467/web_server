@@ -1028,3 +1028,10 @@ button:disabled {
   height: 12px;
   background: rgba(0, 0, 0, 0.05);
 }
+
+/*required mark*/
+.required-mark {
+  color: #d9534f;
+  margin-left: 2px;
+  font-weight: 700;
+}

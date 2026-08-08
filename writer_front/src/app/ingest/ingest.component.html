@@ -3,7 +3,7 @@
     <form [formGroup]="metaForm" (ngSubmit)="submit()">
 
       <header class="editor-header">
-        <label>标题</label>
+        <label>标题<span class="required-mark">*</span></label>
         <input type="text" formControlName="title" class="title-input" placeholder="Title">
 
         <label>副标题</label>
@@ -15,7 +15,7 @@
             <input type="text" formControlName="author" placeholder="Writer Name">
           </div>
           <div class="meta-field">
-            <label>分类</label>
+            <label>分类<span class="required-mark">*</span></label>
             <select formControlName="category">
               <option value="">— 选择 —</option>
               <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
@@ -26,14 +26,14 @@
             <input type="datetime-local" formControlName="date_time">
           </div>
           <div class="meta-field">
-            <label>位置</label>
+            <label>位置<span class="required-mark">*</span></label>
             <select formControlName="section_zone">
               <option value="">— 选择 —</option>
               <option *ngFor="let opt of sectionZoneOptions" [value]="opt.value">{{ opt.label }}</option>
             </select>
           </div>
           <div class="meta-field">
-            <label>排列</label>
+            <label>排列<span class="required-mark" *ngIf="!intraSectionZoneDisabled">*</span></label>
             <select formControlName="intra_section_zone" [disabled]="intraSectionZoneDisabled">
               <option [ngValue]="null">— 选择 —</option>
               <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>

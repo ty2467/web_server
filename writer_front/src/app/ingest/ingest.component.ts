@@ -72,23 +72,20 @@ export class IngestComponent implements OnInit, OnDestroy {
       title: new FormControl('', [Validators.required]),
       summary: new FormControl(''),
       author: new FormControl(''),
-      category: new FormControl(''),
+      category: new FormControl('', [Validators.required]),
       date_time: new FormControl(this.getCurrentDateTime()),
-      section_zone: new FormControl(''),
+      section_zone: new FormControl('', [Validators.required]),
       intra_section_zone: new FormControl<number | null>(null, [Validators.min(0), Validators.max(255)]),
       lead_image_url: new FormControl(''),
       lead_image_caption: new FormControl('')
     });
-
     // Keep 排列 (intra_section_zone) in sync with 位置 (section_zone): whenever
     // the zone changes to something that doesn't offer the currently-selected
     // permutation (or offers none at all — column/no zone), clear it instead
     // of leaving a now-invalid stored number sitting in the form.
-    this.metaForm.get('section_zone')!.valueChanges.subscribe(() => {
-      const intraCtrl = this.metaForm.get('intra_section_zone')!;
-      const stillValid = this.intraSectionZoneOptions.some(opt => opt.value === intraCtrl.value);
-      if (!stillValid) intraCtrl.setValue(null);
-    });
+    this.metaForm.get('section_zone')!.valueChanges.subscribe(() => this.syncIntraZoneValidity());
+    this.syncIntraZoneValidity(); // apply once for the initial (empty) zone
+
 
     this.route.queryParams.subscribe((params: Params) => {
       this.clearAllBlocks();
@@ -105,6 +102,18 @@ export class IngestComponent implements OnInit, OnDestroy {
     });
   }
 
+  private syncIntraZoneValidity() {
+    const zone = this.metaForm.get('section_zone')!.value;
+    const intraCtrl = this.metaForm.get('intra_section_zone')!;
+
+    const stillValid = this.intraSectionZoneOptions.some(opt => opt.value === intraCtrl.value);
+    if (!stillValid) intraCtrl.setValue(null, { emitEvent: false });
+
+    const validators = [Validators.min(0), Validators.max(255)];
+    if (zone !== 'column') validators.push(Validators.required);
+    intraCtrl.setValidators(validators);
+    intraCtrl.updateValueAndValidity({ emitEvent: false });
+  }
   ngOnDestroy() {
     this.editors.forEach(ed => ed.destroy());
   }
@@ -128,8 +137,8 @@ export class IngestComponent implements OnInit, OnDestroy {
   // ===========================================================================
 
   readonly sectionZoneOptions: { value: string; label: string }[] = [
-    { value: 'main',     label: '主页' },   // zhu ye — main page
-    { value: 'sub_main',  label: '次主页' }, // ci zhu ye — major front
+    { value: 'main',     label: '主板' },   // zhu ye — main page
+    { value: 'sub_main',  label: '次板' }, // ci zhu ye — major front
     { value: 'tertiary',  label: '三版' },   // san ban — half front
     { value: 'column',    label: '栏目' }    // lan mu — columns
   ];

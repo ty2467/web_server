@@ -367,6 +367,10 @@ public class SpringBootTutorialApplication {
         String blocksJson = jsonMapper.writeValueAsString(blocks);
         boolean isUpdate = articleId != null && articleId > 0;
 
+        if ("column".equals(article.getSection_zone())) {
+            article.setIntra_section_zone(-1);
+        }
+
         try {
             if (isUpdate) {
                 String updateSql = "UPDATE editors_db SET title=?, summary=?, author=?, category=?, " +
