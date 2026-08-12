@@ -5,28 +5,39 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rabbitmq.client.*;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
+import javax.sql.DataSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
+import java.sql.Connection;   // resolves the clash with com.rabbitmq.client.Connection
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import java.sql.Connection;
-
 /**
  * Standalone listener: subscribes to editors_db.events (published by
  * writer_back's EditorsDbEventPublisher after each successful ingest())
  * and projects the changed row into article_display. No Spring, no
- * JdbcTemplate — plain JDBC, one Connection held for the process's life.
+ * JdbcTemplate — plain JDBC over a small pooled DataSource.
  *
  * Run: java -jar editors-display-sync-0.0.1.jar
  * Config: five env vars, see main() below. No config file, no profiles —
  * matches the rest of this project's "no more machinery than the task
  * needs" style.
+ *
+ * CONNECTION LIFECYCLE — this listener sits idle between editorial saves,
+ * which is exactly the shape MariaDB's wait_timeout reaps. It therefore
+ * holds a pooled DataSource rather than one long-lived Connection: a
+ * connection is borrowed per message and returned immediately. Hikari
+ * retires connections before the server would reap them (maxLifetime <
+ * wait_timeout) and validates on borrow, so a reaped or network-dropped
+ * connection is replaced transparently instead of bricking the process
+ * until restart.
  *
  * Same content-shape gap as before: editors_db has no alt/credit columns
  * for lead image or inline media, so those stay NULL in article_display
@@ -47,11 +58,10 @@ public class EditorsDisplaySync {
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final int WORDS_PER_MINUTE = 200;
 
-    private final java.sql.Connection db;
+    private final DataSource ds;
 
-
-    public EditorsDisplaySync(java.sql.Connection db)  {
-        this.db = db;
+    public EditorsDisplaySync(DataSource ds) {
+        this.ds = ds;
     }
 
     public static void main(String[] args) throws Exception {
@@ -60,23 +70,26 @@ public class EditorsDisplaySync {
         String rabbitUser = env("RABBIT_USER", "guest");
         String rabbitPass = env("RABBIT_PASS", "guest");
 
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.72:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.0.176:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.189:3306/phoenix_web");
+        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.214:3306/phoenix_web");
 
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
-        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.189:3306/phoenix_web");
         Map<String, String> dotenv = loadDotEnv();
         String dbUser = dotenv.get("PWUSER");
         String dbPass = dotenv.get("PWPWD");
-        System.out.println(dbUser);
-        System.out.println(dbPass);
+
         if (dbUser == null || dbPass == null) {
             throw new IllegalStateException(
                     "PWUSER and/or PWPWD not found in ~/.env — refusing to connect without credentials.");
         }
-        System.out.println("Connecting to: " + jdbcUrl);
-        Connection db = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-        db.setAutoCommit(true);
-        EditorsDisplaySync sync = new EditorsDisplaySync(db);
+
+        System.out.println("Connecting to: " + jdbcUrl + " as " + dbUser);
+
+        HikariDataSource ds = buildDataSource(jdbcUrl, dbUser, dbPass);
+        Runtime.getRuntime().addShutdownHook(new Thread(ds::close));
+
+        EditorsDisplaySync sync = new EditorsDisplaySync(ds);
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(rabbitHost);
@@ -91,9 +104,11 @@ public class EditorsDisplaySync {
         channel.exchangeDeclare(EXCHANGE, "topic", true);
         channel.queueDeclare(QUEUE, /* durable */ true, false, false, null);
         channel.queueBind(QUEUE, EXCHANGE, ROUTING_KEY);
-        // Process one message at a time before acking the next — with a
-        // single JDBC connection that's the right prefetch; raise this
-        // only alongside a connection pool.
+        // Process one message at a time before acking the next. The pool
+        // could now serve a higher prefetch, but syncOne()'s read-then-write
+        // is not idempotent under concurrency for the same editors_db_id —
+        // raise this only alongside per-id serialization or a unique index
+        // on editors_db_id.
         channel.basicQos(1);
 
         System.out.println("[sync] listening on " + QUEUE + " (" + ROUTING_KEY + ")");
@@ -122,12 +137,50 @@ public class EditorsDisplaySync {
             }
         };
 
-
-
         channel.basicConsume(QUEUE, /* autoAck */ false, onMessage, tag -> {});
 
         // keep the process alive; basicConsume runs on its own thread
         Thread.currentThread().join();
+    }
+
+    // ------------------------------------------------------------------
+    //  pool
+    // ------------------------------------------------------------------
+
+    /**
+     * maxLifetime must stay comfortably BELOW the server's wait_timeout so
+     * Hikari retires a connection before MariaDB reaps it — otherwise the
+     * pool hands out a corpse and the borrow fails. 280s is safe against
+     * even an aggressive 300s server default; raise it only in step with a
+     * verified wait_timeout (SHOW GLOBAL VARIABLES LIKE 'wait_timeout').
+     *
+     * minimumIdle=0 because this listener is bursty: between editorial
+     * saves there is no reason to hold an open connection at all, which
+     * removes the idle-reap failure mode by construction rather than by
+     * timing.
+     */
+    private static HikariDataSource buildDataSource(String jdbcUrl, String user, String pass) {
+        HikariConfig cfg = new HikariConfig();
+        cfg.setPoolName("editors-display-sync-pool");
+        cfg.setJdbcUrl(jdbcUrl);
+        cfg.setUsername(user);
+        cfg.setPassword(pass);
+
+        cfg.setMaximumPoolSize(2);        // one consumer thread + basicQos(1)
+        cfg.setMinimumIdle(0);
+//        cfg.setMaxLifetime(280_000);      // < server wait_timeout
+        cfg.setMaxLifetime(1_800_000);
+        cfg.setKeepaliveTime(120_000);    // defeats NAT/firewall idle drops
+        cfg.setIdleTimeout(60_000);
+        cfg.setConnectionTimeout(10_000);
+        cfg.setValidationTimeout(5_000);
+        cfg.setAutoCommit(true);          // was db.setAutoCommit(true)
+
+        cfg.addDataSourceProperty("tcpKeepAlive", "true");
+        cfg.addDataSourceProperty("socketTimeout", "60000");
+        cfg.addDataSourceProperty("connectTimeout", "10000");
+
+        return new HikariDataSource(cfg);
     }
 
     private static String env(String key, String fallback) {
@@ -140,7 +193,7 @@ public class EditorsDisplaySync {
         Map<String, String> values = new HashMap<>();
         Path path = Path.of(System.getProperty("user.home"), ".env");
         if (!Files.exists(path)) {
-            System.err.println("[homepage-sync] no ~/.env found at " + path);
+            System.err.println("[sync] no ~/.env found at " + path);
             return values;
         }
         List<String> lines = Files.readAllLines(path);
@@ -166,118 +219,124 @@ public class EditorsDisplaySync {
     // ------------------------------------------------------------------
 
     public void syncOne(long editorsDbId) throws SQLException {
-        EditorsRow src = fetchRow(editorsDbId);
-        if (src == null) {
-            System.err.println("[sync] editors_db id=" + editorsDbId + " not found, skipping");
-            return;
-        }
+        // One borrow for the whole unit of work: the source read, the
+        // existing-row lookup and the write all share a single server
+        // session, and the connection goes back to the pool on exit.
+        try (Connection db = ds.getConnection()) {
+            EditorsRow src = fetchRow(db, editorsDbId);
+            if (src == null) {
+                System.err.println("[sync] editors_db id=" + editorsDbId + " not found, skipping");
+                return;
+            }
 
-        ArrayNode displayBlocks = transformBlocks(src.contentBlocks);
-        if (displayBlocks == null) {
-            System.err.println("[sync] editors_db id=" + editorsDbId +
-                    " has invalid content_blocks JSON, skipping");
-            return;
-        }
+            ArrayNode displayBlocks = transformBlocks(src.contentBlocks);
+            if (displayBlocks == null) {
+                System.err.println("[sync] editors_db id=" + editorsDbId +
+                        " has invalid content_blocks JSON, skipping");
+                return;
+            }
 
-        String blocksJson;
-        try {
-            blocksJson = mapper.writeValueAsString(displayBlocks);
-        } catch (Exception e) {
-            System.err.println("[sync] editors_db id=" + editorsDbId + " failed to serialize: " + e);
-            return;
-        }
+            String blocksJson;
+            try {
+                blocksJson = mapper.writeValueAsString(displayBlocks);
+            } catch (Exception e) {
+                System.err.println("[sync] editors_db id=" + editorsDbId + " failed to serialize: " + e);
+                return;
+            }
 
-        int wordCount = countWords(displayBlocks);
-        int readingMinutes = Math.max(1, (int) Math.ceil(wordCount / (double) WORDS_PER_MINUTE));
+            int wordCount = countWords(displayBlocks);
+            int readingMinutes = Math.max(1, (int) Math.ceil(wordCount / (double) WORDS_PER_MINUTE));
 
-        boolean hasLead = src.leadImageUrl != null && !src.leadImageUrl.isBlank();
-        String leadUrl = hasLead ? src.leadImageUrl : null;
-        String leadCaption = hasLead ? src.leadImageCaption : null;
+            boolean hasLead = src.leadImageUrl != null && !src.leadImageUrl.isBlank();
+            String leadUrl = hasLead ? src.leadImageUrl : null;
+            String leadCaption = hasLead ? src.leadImageCaption : null;
 
-        Long existingId = null;
-        String priorBlocksJson = null;
-        try (PreparedStatement ps = db.prepareStatement(
-                "SELECT id, content_blocks FROM article_display WHERE editors_db_id = ?")) {
-            ps.setLong(1, editorsDbId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    existingId = rs.getLong("id");
-                    priorBlocksJson = rs.getString("content_blocks");
+            Long existingId = null;
+            String priorBlocksJson = null;
+            try (PreparedStatement ps = db.prepareStatement(
+                    "SELECT id, content_blocks FROM article_display WHERE editors_db_id = ?")) {
+                ps.setLong(1, editorsDbId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        existingId = rs.getLong("id");
+                        priorBlocksJson = rs.getString("content_blocks");
+                    }
                 }
             }
-        }
 
-        boolean blocksChanged = existingId != null && priorBlocksJson != null
-                && !normalizeForCompare(priorBlocksJson).equals(normalizeForCompare(blocksJson));
+            boolean blocksChanged = existingId != null && priorBlocksJson != null
+                    && !normalizeForCompare(priorBlocksJson).equals(normalizeForCompare(blocksJson));
 
-        if (existingId == null) {
-            String slug = buildSlug(src.title, editorsDbId);
-            // MariaDB has no CAST(... AS JSON) — that's MySQL-only syntax.
-            // content_blocks is a JSON-aliased LONGTEXT column here, so a
-            // plain string bind is all that's needed; MariaDB validates it
-            // against JSON_VALID() itself.
-            try (PreparedStatement ps = db.prepareStatement(
-                    "INSERT INTO article_display " +
-                            "(slug, editors_db_id, headline, dek, category, author_name, " +
-                            " published_at, revised_at, lead_image_url, lead_image_alt, " +
-                            " lead_image_caption, lead_image_credit, content_blocks, state, " +
-                            " word_count, reading_time_minutes) " +
-                            "VALUES (?,?,?,?,?,?,?,NULL,?,NULL,?,NULL,?,'published',?,?)")) {
-                ps.setString(1, slug);
-                ps.setLong(2, editorsDbId);
-                ps.setString(3, src.title);
-                ps.setString(4, src.summary);
-                ps.setString(5, src.category);
-                ps.setString(6, src.author);
-                ps.setTimestamp(7, src.dateTime);
-                ps.setString(8, leadUrl);
-                ps.setString(9, leadCaption);
-                ps.setString(10, blocksJson);
-                ps.setInt(11, wordCount);
-                ps.setInt(12, readingMinutes);
-                ps.executeUpdate();
-            }
-        } else if (blocksChanged) {
-            try (PreparedStatement ps = db.prepareStatement(
-                    "UPDATE article_display SET " +
-                            " headline=?, dek=?, category=?, author_name=?, " +
-                            " lead_image_url=?, lead_image_caption=?, " +
-                            " content_blocks=?, word_count=?, reading_time_minutes=?, revised_at=? " +
-                            "WHERE editors_db_id=?")) {
-                ps.setString(1, src.title);
-                ps.setString(2, src.summary);
-                ps.setString(3, src.category);
-                ps.setString(4, src.author);
-                ps.setString(5, leadUrl);
-                ps.setString(6, leadCaption);
-                ps.setString(7, blocksJson);
-                ps.setInt(8, wordCount);
-                ps.setInt(9, readingMinutes);
-                ps.setTimestamp(10, Timestamp.from(java.time.Instant.now()));
-                ps.setLong(11, editorsDbId);
-                ps.executeUpdate();
-            }
-        } else {
-            try (PreparedStatement ps = db.prepareStatement(
-                    "UPDATE article_display SET " +
-                            " headline=?, dek=?, category=?, author_name=?, lead_image_url=?, lead_image_caption=? " +
-                            "WHERE editors_db_id=?")) {
-                ps.setString(1, src.title);
-                ps.setString(2, src.summary);
-                ps.setString(3, src.category);
-                ps.setString(4, src.author);
-                ps.setString(5, leadUrl);
-                ps.setString(6, leadCaption);
-                ps.setLong(7, editorsDbId);
-                ps.executeUpdate();
+            if (existingId == null) {
+                String slug = buildSlug(src.title, editorsDbId);
+                // MariaDB has no CAST(... AS JSON) — that's MySQL-only syntax.
+                // content_blocks is a JSON-aliased LONGTEXT column here, so a
+                // plain string bind is all that's needed; MariaDB validates it
+                // against JSON_VALID() itself.
+                try (PreparedStatement ps = db.prepareStatement(
+                        "INSERT INTO article_display " +
+                                "(slug, editors_db_id, headline, dek, category, author_name, " +
+                                " published_at, revised_at, lead_image_url, lead_image_alt, " +
+                                " lead_image_caption, lead_image_credit, content_blocks, state, " +
+                                " word_count, reading_time_minutes) " +
+                                "VALUES (?,?,?,?,?,?,?,NULL,?,NULL,?,NULL,?,'published',?,?)")) {
+                    ps.setString(1, slug);
+                    ps.setLong(2, editorsDbId);
+                    ps.setString(3, src.title);
+                    ps.setString(4, src.summary);
+                    ps.setString(5, src.category);
+                    ps.setString(6, src.author);
+                    ps.setTimestamp(7, src.dateTime);
+                    ps.setString(8, leadUrl);
+                    ps.setString(9, leadCaption);
+                    ps.setString(10, blocksJson);
+                    ps.setInt(11, wordCount);
+                    ps.setInt(12, readingMinutes);
+                    ps.executeUpdate();
+                }
+            } else if (blocksChanged) {
+                try (PreparedStatement ps = db.prepareStatement(
+                        "UPDATE article_display SET " +
+                                " headline=?, dek=?, category=?, author_name=?, " +
+                                " lead_image_url=?, lead_image_caption=?, " +
+                                " content_blocks=?, word_count=?, reading_time_minutes=?, revised_at=? " +
+                                "WHERE editors_db_id=?")) {
+                    ps.setString(1, src.title);
+                    ps.setString(2, src.summary);
+                    ps.setString(3, src.category);
+                    ps.setString(4, src.author);
+                    ps.setString(5, leadUrl);
+                    ps.setString(6, leadCaption);
+                    ps.setString(7, blocksJson);
+                    ps.setInt(8, wordCount);
+                    ps.setInt(9, readingMinutes);
+                    ps.setTimestamp(10, Timestamp.from(java.time.Instant.now()));
+                    ps.setLong(11, editorsDbId);
+                    ps.executeUpdate();
+                }
+            } else {
+                try (PreparedStatement ps = db.prepareStatement(
+                        "UPDATE article_display SET " +
+                                " headline=?, dek=?, category=?, author_name=?, lead_image_url=?, lead_image_caption=? " +
+                                "WHERE editors_db_id=?")) {
+                    ps.setString(1, src.title);
+                    ps.setString(2, src.summary);
+                    ps.setString(3, src.category);
+                    ps.setString(4, src.author);
+                    ps.setString(5, leadUrl);
+                    ps.setString(6, leadCaption);
+                    ps.setLong(7, editorsDbId);
+                    ps.executeUpdate();
+                }
             }
         }
     }
 
     //---deletion method
     public void deleteOne(long editorsDbId) throws SQLException {
-        try (PreparedStatement ps = db.prepareStatement(
-                "DELETE FROM article_display WHERE editors_db_id = ?")) {
+        try (Connection db = ds.getConnection();
+             PreparedStatement ps = db.prepareStatement(
+                     "DELETE FROM article_display WHERE editors_db_id = ?")) {
             ps.setLong(1, editorsDbId);
             int deleted = ps.executeUpdate();
             if (deleted == 0) {
@@ -287,7 +346,9 @@ public class EditorsDisplaySync {
         }
     }
 
-    private EditorsRow fetchRow(long id) throws SQLException {
+    // Takes the borrowed Connection rather than reading a field, so the
+    // caller owns the borrow/return for the whole unit of work.
+    private EditorsRow fetchRow(Connection db, long id) throws SQLException {
         try (PreparedStatement ps = db.prepareStatement(
                 "SELECT id, title, summary, author, category, date_time, " +
                         "lead_image_url, lead_image_caption, content_blocks " +

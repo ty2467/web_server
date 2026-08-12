@@ -88,6 +88,14 @@
                 <button type="button" (click)="editor.chain().focus().toggleBulletList().run()" [class.is-active]="editor.isActive('bulletList')">•</button>
                 <button type="button" (click)="editor.chain().focus().toggleOrderedList().run()" [class.is-active]="editor.isActive('orderedList')">1.</button>
               </div>
+              <div class="menu-group">
+                <select class="font-size-select"
+                        [value]="editor.getAttributes('textStyle')['fontSize'] || ''"
+                        (change)="onFontSizeChange($event, editor)">
+                  <option value="">Default</option>
+                  <option *ngFor="let size of fontSizes" [value]="size">{{ size }}</option>
+                </select>
+              </div>
             </div>
             <tiptap-editor [editor]="editors.get(block.localId)!" class="editable-area"></tiptap-editor>
             <div class="block-actions" *ngIf="(uiState.get(block.localId)?.charCount ?? 0) > 0">

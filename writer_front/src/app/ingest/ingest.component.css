@@ -908,6 +908,32 @@ button:disabled {
   box-shadow: 0 4px 10px rgba(238, 129, 43, 0.2);
 }
 
+.font-size-select {
+  height: 32px;
+  padding: 0 20px 0 8px;
+  margin: 0;
+  background: transparent;
+  color: #555;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #888 50%),
+  linear-gradient(135deg, #888 50%, transparent 50%);
+  background-position: calc(100% - 10px) center, calc(100% - 5px) center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  transition: all 0.2s ease;
+}
+
+.font-size-select:hover {
+  background-color: rgba(238, 129, 43, 0.1);
+  color: #ee812b;
+}
+
 /* Ensure the editor doesn't feel cramped under the bar */
 .editable-area {
   padding-top: 10px;
@@ -1027,11 +1053,4 @@ button:disabled {
   width: 1px;
   height: 12px;
   background: rgba(0, 0, 0, 0.05);
-}
-
-/*required mark*/
-.required-mark {
-  color: #d9534f;
-  margin-left: 2px;
-  font-weight: 700;
 }

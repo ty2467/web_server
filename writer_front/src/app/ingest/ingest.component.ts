@@ -7,6 +7,7 @@ import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-
 
 import { TiptapEditorDirective } from 'ngx-tiptap';
 import { Editor, Extensions, JSONContent } from '@tiptap/core';
+import { TextStyle, FontSize } from '@tiptap/extension-text-style';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -49,8 +50,12 @@ export class IngestComponent implements OnInit, OnDestroy {
     StarterKit,
     Underline,
     Link.configure({ openOnClick: false }),
-    Placeholder.configure({ placeholder: 'Type something or paste content...' })
+    Placeholder.configure({ placeholder: 'Type something or paste content...' }),
+    TextStyle,
+    FontSize
   ];
+
+  readonly fontSizes: string[] = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
 
   private readonly baseURL = `http://${window.location.hostname}:9000/api`;
   private readonly API_URL = `${this.baseURL}/ingest`;
@@ -83,8 +88,11 @@ export class IngestComponent implements OnInit, OnDestroy {
     // the zone changes to something that doesn't offer the currently-selected
     // permutation (or offers none at all — column/no zone), clear it instead
     // of leaving a now-invalid stored number sitting in the form.
-    this.metaForm.get('section_zone')!.valueChanges.subscribe(() => this.syncIntraZoneValidity());
-    this.syncIntraZoneValidity(); // apply once for the initial (empty) zone
+    this.metaForm.get('section_zone')!.valueChanges.subscribe(() => {
+      const intraCtrl = this.metaForm.get('intra_section_zone')!;
+      const stillValid = this.intraSectionZoneOptions.some(opt => opt.value === intraCtrl.value);
+      if (!stillValid) intraCtrl.setValue(null);
+    });
 
 
     this.route.queryParams.subscribe((params: Params) => {
@@ -327,6 +335,15 @@ export class IngestComponent implements OnInit, OnDestroy {
       return;
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }
+
+  onFontSizeChange(event: Event, editor: Editor) {
+    const value = (event.target as HTMLSelectElement).value;
+    if (value) {
+      editor.chain().focus().setFontSize(value).run();
+    } else {
+      editor.chain().focus().unsetFontSize().run();
+    }
   }
 
   // ===========================================================================

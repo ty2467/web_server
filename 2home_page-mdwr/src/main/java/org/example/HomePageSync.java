@@ -3,14 +3,15 @@ package org.example;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
+import javax.sql.DataSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +34,15 @@ import java.util.Map;
  * slug for the same editors_db row with no coordination, no DB round-trip,
  * and no dependency on which listener processes a given message first.
  *
+ * CONNECTION LIFECYCLE — this listener is idle for long stretches between
+ * editorial saves, which is exactly the shape that MariaDB's wait_timeout
+ * kills. It therefore holds a pooled DataSource, NOT a single long-lived
+ * java.sql.Connection: a connection is borrowed per message and returned
+ * immediately. Hikari retires connections before the server would reap
+ * them (maxLifetime < wait_timeout) and validates on borrow, so a reaped
+ * or network-dropped connection is replaced transparently instead of
+ * bricking the process until restart.
+ *
  * Run: java -jar homepage-sync-0.0.1.jar
  * Config: RABBIT_HOST, RABBIT_PORT, RABBIT_USER, RABBIT_PASS, JDBC_URL as
  * env vars. DB credentials are NOT env vars — loaded from ~/.env
@@ -46,10 +56,10 @@ public class HomePageSync {
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private final Connection db;
+    private final DataSource ds;
 
-    public HomePageSync(Connection db) {
-        this.db = db;
+    public HomePageSync(DataSource ds) {
+        this.ds = ds;
     }
 
     public static void main(String[] args) throws Exception {
@@ -58,9 +68,10 @@ public class HomePageSync {
         String rabbitUser = env("RABBIT_USER", "guest");
         String rabbitPass = env("RABBIT_PASS", "guest");
 
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.72:3306/phoenix_web"); 123.189
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.0.176:3306/phoenix_web");
-        String jdbcUrl = env("JDBC_URL", "jdbc:mysql://192.168.123.189:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.72:3306/phoenix_web"); 123.189
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.0.176:3306/phoenix_web");
+//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.189:3306/phoenix_web");
+        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.214:3306/phoenix_web");
 
         Map<String, String> dotenv = loadDotEnv();
         String dbUser = dotenv.get("PWUSER");
@@ -71,9 +82,10 @@ public class HomePageSync {
                     "PWUSER and/or PWPWD not found in ~/.env — refusing to connect without credentials.");
         }
 
-        Connection db = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-        db.setAutoCommit(true);
-        HomePageSync sync = new HomePageSync(db);
+        HikariDataSource ds = buildDataSource(jdbcUrl, dbUser, dbPass);
+        Runtime.getRuntime().addShutdownHook(new Thread(ds::close));
+
+        HomePageSync sync = new HomePageSync(ds);
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(rabbitHost);
@@ -116,6 +128,46 @@ public class HomePageSync {
         Thread.currentThread().join();
     }
 
+    // ------------------------------------------------------------------
+    //  pool
+    // ------------------------------------------------------------------
+
+    /**
+     * maxLifetime must stay comfortably BELOW the server's wait_timeout so
+     * Hikari retires a connection before MariaDB reaps it — otherwise the
+     * pool hands out a corpse and the borrow fails. 280s is safe against
+     * even an aggressive 300s server default; raise it only in step with
+     * a verified wait_timeout (SHOW VARIABLES LIKE 'wait_timeout').
+     *
+     * minimumIdle=0 because this listener is bursty: between editorial
+     * saves there is no reason to hold an open connection at all, which
+     * removes the idle-reap failure mode by construction rather than by
+     * timing.
+     */
+    private static HikariDataSource buildDataSource(String jdbcUrl, String user, String pass) {
+        HikariConfig cfg = new HikariConfig();
+        cfg.setPoolName("homepage-sync-pool");
+        cfg.setJdbcUrl(jdbcUrl);
+        cfg.setUsername(user);
+        cfg.setPassword(pass);
+
+        cfg.setMaximumPoolSize(2);        // one consumer thread + basicQos(1)
+        cfg.setMinimumIdle(0);
+//        cfg.setMaxLifetime(280_000);      // < server wait_timeout
+        cfg.setMaxLifetime(1_800_000);
+        cfg.setKeepaliveTime(120_000);    // defeats NAT/firewall idle drops
+        cfg.setIdleTimeout(60_000);
+        cfg.setConnectionTimeout(10_000);
+        cfg.setValidationTimeout(5_000);
+        cfg.setAutoCommit(true);          // was db.setAutoCommit(true)
+
+        cfg.addDataSourceProperty("tcpKeepAlive", "true");
+        cfg.addDataSourceProperty("socketTimeout", "60000");
+        cfg.addDataSourceProperty("connectTimeout", "10000");
+
+        return new HikariDataSource(cfg);
+    }
+
     private static String env(String key, String fallback) {
         String v = System.getenv(key);
         return (v == null || v.isBlank()) ? fallback : v;
@@ -154,47 +206,53 @@ public class HomePageSync {
     // ------------------------------------------------------------------
 
     public void syncOne(long editorsDbId) throws Exception {
-        Row src = fetchRow(editorsDbId);
-        if (src == null) {
-            System.err.println("[homepage-sync] editors_db id=" + editorsDbId + " not found, skipping");
-            return;
-        }
+        // Single borrow for both the read and the write: the SELECT and the
+        // upsert stay on one connection, so they see one consistent server
+        // session, and the connection is returned the moment we're done.
+        try (Connection db = ds.getConnection()) {
+            Row src = fetchRow(db, editorsDbId);
+            if (src == null) {
+                System.err.println("[homepage-sync] editors_db id=" + editorsDbId + " not found, skipping");
+                return;
+            }
 
-        String slug = buildSlug(src.title, src.id);
+            String slug = buildSlug(src.title, src.id);
 
-        // slug is deliberately left OUT of the ON DUPLICATE KEY UPDATE list:
-        // it's set once, on first insert (VALUES(...) branch), and frozen
-        // after that — same as article_display's slug — so a link already
-        // generated from home_page never points at a slug that's since
-        // changed underneath it.
-        try (PreparedStatement ps = db.prepareStatement(
-                "INSERT INTO home_page " +
-                        "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, cover_media_url, slug) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?,?) " +
-                        "ON DUPLICATE KEY UPDATE " +
-                        "  title=VALUES(title), dek=VALUES(dek), author=VALUES(author), " +
-                        "  category=VALUES(category), date_time=VALUES(date_time), " +
-                        "  section_zone=VALUES(section_zone), intra_section_zone=VALUES(intra_section_zone), " +
-                        "  cover_media_url=VALUES(cover_media_url)")) {
-            ps.setLong(1, src.id);
-            ps.setString(2, src.title);
-            ps.setString(3, src.summary);       // -> dek
-            ps.setString(4, src.author);
-            ps.setString(5, src.category);
-            ps.setTimestamp(6, src.dateTime);
-            ps.setString(7, src.sectionZone);
-            if (src.intraSectionZone != null) ps.setInt(8, src.intraSectionZone);
-            else ps.setNull(8, java.sql.Types.TINYINT);
-            ps.setString(9, src.leadImageUrl);  // -> cover_media_url
-            ps.setString(10, slug);
-            ps.executeUpdate();
+            // slug is deliberately left OUT of the ON DUPLICATE KEY UPDATE list:
+            // it's set once, on first insert (VALUES(...) branch), and frozen
+            // after that — same as article_display's slug — so a link already
+            // generated from home_page never points at a slug that's since
+            // changed underneath it.
+            try (PreparedStatement ps = db.prepareStatement(
+                    "INSERT INTO home_page " +
+                            "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, cover_media_url, slug) " +
+                            "VALUES (?,?,?,?,?,?,?,?,?,?) " +
+                            "ON DUPLICATE KEY UPDATE " +
+                            "  title=VALUES(title), dek=VALUES(dek), author=VALUES(author), " +
+                            "  category=VALUES(category), date_time=VALUES(date_time), " +
+                            "  section_zone=VALUES(section_zone), intra_section_zone=VALUES(intra_section_zone), " +
+                            "  cover_media_url=VALUES(cover_media_url)")) {
+                ps.setLong(1, src.id);
+                ps.setString(2, src.title);
+                ps.setString(3, src.summary);       // -> dek
+                ps.setString(4, src.author);
+                ps.setString(5, src.category);
+                ps.setTimestamp(6, src.dateTime);
+                ps.setString(7, src.sectionZone);
+                if (src.intraSectionZone != null) ps.setInt(8, src.intraSectionZone);
+                else ps.setNull(8, java.sql.Types.TINYINT);
+                ps.setString(9, src.leadImageUrl);  // -> cover_media_url
+                ps.setString(10, slug);
+                ps.executeUpdate();
+            }
         }
     }
 
     //---deletion method
     public void deleteOne(long editorsDbId) throws Exception {
-        try (PreparedStatement ps = db.prepareStatement(
-                "DELETE FROM home_page WHERE id = ?")) {
+        try (Connection db = ds.getConnection();
+             PreparedStatement ps = db.prepareStatement(
+                     "DELETE FROM home_page WHERE id = ?")) {
             ps.setLong(1, editorsDbId);
             int deleted = ps.executeUpdate();
             if (deleted == 0) {
@@ -204,7 +262,9 @@ public class HomePageSync {
         }
     }
 
-    private Row fetchRow(long id) throws Exception {
+    // Takes the borrowed Connection rather than reading a field, so the
+    // caller owns the borrow/return for the whole unit of work.
+    private Row fetchRow(Connection db, long id) throws Exception {
         try (PreparedStatement ps = db.prepareStatement(
                 "SELECT id, title, summary, author, category, date_time, " +
                         "section_zone, intra_section_zone, lead_image_url " +
@@ -226,7 +286,7 @@ public class HomePageSync {
     // — see that file's comment on why this is deterministic and safely
     // duplicated rather than shared.
     /*bruv the slug is literally built with id. no mistake. i argue
-    * that a pure slug no id format would be preferred.*/
+     * that a pure slug no id format would be preferred.*/
     private static String buildSlug(String title, long editorsDbId) {
         return slugify(title);
     }
