@@ -30,6 +30,7 @@ export class ArticleDetailComponent {
     return Date.parse(a.updatedAt) - Date.parse(a.publishedAt) > 60_000;
   });
 
+
   constructor() {
     // Populate from whatever the route resolver already fetched — no
     // duplicate request here, this just reads the resolved value.
@@ -60,6 +61,12 @@ export class ArticleDetailComponent {
       this.setCanonical(a.canonicalUrl);
     });
   }
+
+  viewCountLabel = computed(() => {
+    const n = this.article()?.viewCount ?? 0;
+    return n >= 10_000 ? (n / 10_000).toFixed(1).replace(/\.0$/, '') + '万'
+      : n.toLocaleString();
+  });
 
   /** Secondary, non-blocking — the article itself must still render if
    *  this fails, so it's fetched here rather than in the route resolver. */

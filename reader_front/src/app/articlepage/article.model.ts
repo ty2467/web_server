@@ -72,4 +72,6 @@ export interface Article {
 
   /** Computed at save time from word count, not recomputed per render. */
   readingTimeMinutes: number;
+
+  viewCount: number;
 }

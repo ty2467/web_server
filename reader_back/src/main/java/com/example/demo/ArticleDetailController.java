@@ -62,6 +62,7 @@ class ArticleDetailController {
                     dto.state = rs.getString("state");
                     dto.readingTimeMinutes = rs.getInt("reading_time_minutes");
                     dto.blocks = rs.getString("content_blocks"); // already display-shape JSON, embedded raw
+                    dto.viewCount = rs.getInt("view_count");
                     System.out.println("basic construction terminal point reached");
                     String leadUrl = rs.getString("lead_image_url");
                     if (leadUrl != null) {
@@ -130,7 +131,11 @@ class ArticleDetailDTO {
     @JsonRawValue
     public String blocks; // raw content_blocks JSON, embedded as-is — not re-parsed
     public String state;
+
+
     public int readingTimeMinutes;
+    public int viewCount;
+
 }
 
 class LeadImageDTO {

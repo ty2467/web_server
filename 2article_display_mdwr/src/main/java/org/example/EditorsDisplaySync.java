@@ -278,8 +278,8 @@ public class EditorsDisplaySync {
                                 "(slug, editors_db_id, headline, dek, category, author_name, " +
                                 " published_at, revised_at, lead_image_url, lead_image_alt, " +
                                 " lead_image_caption, lead_image_credit, content_blocks, state, " +
-                                " word_count, reading_time_minutes) " +
-                                "VALUES (?,?,?,?,?,?,?,NULL,?,NULL,?,NULL,?,'published',?,?)")) {
+                                " word_count, reading_time_minutes, view_count) " +
+                                "VALUES (?,?,?,?,?,?,?,NULL,?,NULL,?,NULL,?,'published',?,?,?)")) {
                     ps.setString(1, slug);
                     ps.setLong(2, editorsDbId);
                     ps.setString(3, src.title);
@@ -292,6 +292,7 @@ public class EditorsDisplaySync {
                     ps.setString(10, blocksJson);
                     ps.setInt(11, wordCount);
                     ps.setInt(12, readingMinutes);
+                    ps.setInt(13, src.viewCount);
                     ps.executeUpdate();
                 }
             } else if (blocksChanged) {
@@ -299,7 +300,7 @@ public class EditorsDisplaySync {
                         "UPDATE article_display SET " +
                                 " headline=?, dek=?, category=?, author_name=?, " +
                                 " lead_image_url=?, lead_image_caption=?, " +
-                                " content_blocks=?, word_count=?, reading_time_minutes=?, revised_at=? " +
+                                " content_blocks=?, word_count=?, reading_time_minutes=?, view_count=?, revised_at=? " +
                                 "WHERE editors_db_id=?")) {
                     ps.setString(1, src.title);
                     ps.setString(2, src.summary);
@@ -310,14 +311,15 @@ public class EditorsDisplaySync {
                     ps.setString(7, blocksJson);
                     ps.setInt(8, wordCount);
                     ps.setInt(9, readingMinutes);
-                    ps.setTimestamp(10, Timestamp.from(java.time.Instant.now()));
-                    ps.setLong(11, editorsDbId);
+                    ps.setInt(10, src.viewCount);
+                    ps.setTimestamp(11, Timestamp.from(java.time.Instant.now()));
+                    ps.setLong(12, editorsDbId);
                     ps.executeUpdate();
                 }
             } else {
                 try (PreparedStatement ps = db.prepareStatement(
                         "UPDATE article_display SET " +
-                                " headline=?, dek=?, category=?, author_name=?, lead_image_url=?, lead_image_caption=? " +
+                                " headline=?, dek=?, category=?, author_name=?, lead_image_url=?, lead_image_caption=?, view_count=? " +
                                 "WHERE editors_db_id=?")) {
                     ps.setString(1, src.title);
                     ps.setString(2, src.summary);
@@ -325,7 +327,8 @@ public class EditorsDisplaySync {
                     ps.setString(4, src.author);
                     ps.setString(5, leadUrl);
                     ps.setString(6, leadCaption);
-                    ps.setLong(7, editorsDbId);
+                    ps.setInt(7, src.viewCount);
+                    ps.setLong(8, editorsDbId);
                     ps.executeUpdate();
                 }
             }
@@ -351,7 +354,7 @@ public class EditorsDisplaySync {
     private EditorsRow fetchRow(Connection db, long id) throws SQLException {
         try (PreparedStatement ps = db.prepareStatement(
                 "SELECT id, title, summary, author, category, date_time, " +
-                        "lead_image_url, lead_image_caption, content_blocks " +
+                        "lead_image_url, lead_image_caption, content_blocks, view_count " +
                         "FROM editors_db WHERE id = ?")) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -360,7 +363,7 @@ public class EditorsDisplaySync {
                         rs.getLong("id"), rs.getString("title"), rs.getString("summary"),
                         rs.getString("author"), rs.getString("category"), rs.getTimestamp("date_time"),
                         rs.getString("lead_image_url"), rs.getString("lead_image_caption"),
-                        rs.getString("content_blocks")
+                        rs.getString("content_blocks"), rs.getInt("view_count")
                 );
             }
         }
@@ -523,8 +526,9 @@ public class EditorsDisplaySync {
     // without either listener knowing about the other or needing any
     // message-ordering guarantee between them.
     private static String buildSlug(String title, long editorsDbId) {
-        return slugify(title);
+        return slugify(title) + "-" + editorsDbId;
     }
+
 
     private static String slugify(String title) {
         if (title == null || title.isBlank()) return "article";
@@ -537,6 +541,7 @@ public class EditorsDisplaySync {
 
     private record EditorsRow(
             long id, String title, String summary, String author, String category,
-            Timestamp dateTime, String leadImageUrl, String leadImageCaption, String contentBlocks
+            Timestamp dateTime, String leadImageUrl, String leadImageCaption, String contentBlocks,
+            int viewCount
     ) {}
 }

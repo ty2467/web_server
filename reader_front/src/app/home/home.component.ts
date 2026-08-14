@@ -1,10 +1,17 @@
-import { Router, RouterModule, ActivatedRoute } from '@angular/router';
-import { Component, signal, inject, OnInit, OnDestroy, Output, EventEmitter, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { RouterModule, ActivatedRoute } from '@angular/router';
+import { Component, signal, inject, OnInit, OnDestroy, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { SafeUrlPipe } from '../safe-url.pipe';
 
+import {
+  Article, SLOT, FrontKey, FRONT_KEYS, FrontBuckets, MatrixColumn,
+  emptyLayout, zonesOf
+} from '../layout.model';
+
+// Re-exported so any existing import of these from home.component keeps
+// resolving; layout.model.ts is the real home for them.
+export { SLOT };
+export type { Article, FrontKey, FrontBuckets, MatrixColumn };
+export const SHOWCASE_CATEGORY = '场景展示';
 
 interface StockQuote {
   symbol: string;
@@ -13,39 +20,10 @@ interface StockQuote {
   changePercent: number;
 }
 
-export interface Article {
-  id: string;
-  slug: string;
-  title: string;
-  summary: string;
-  image?: string;
-  video?: string;
-  category: string;
-  // is_featured?: number; // From MariaDB tinyint(1)
-
-  // Layout routing tags
-  section_zone?: string;
-  intra_section_zone?: number; // 1 for lead, 2 for side, 3 for section card, 4 for matrix
-}
-
-// ---------------------------------------------------------
-// PROJECTION INTERFACES (Defines the shape the HTML expects)
-// ---------------------------------------------------------
-export interface MajorFrontUnit { main: Article; sides: Article[]; sections: Article[]; }
-export interface HalfFrontUnit { main: Article; sides: Article[]; }
-export interface MatrixColumn { category: string; articles: Article[]; }
-
-
-interface PageDataDTO {
-  menuItems: string[];
-  bannerText: string;
-  articlePool: Article[];
-}
-
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, SafeUrlPipe],
+  imports: [CommonModule, RouterModule],
   templateUrl: './home.component.html',
   styleUrls: ['home.component.css']
 })
@@ -53,50 +31,53 @@ export class HomeComponent implements OnInit, OnDestroy {
   @ViewChild('leadVideo') videoElement!: ElementRef<HTMLVideoElement>;
 
   private cdr = inject(ChangeDetectorRef);
-  private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
-  private sanitizer = inject(DomSanitizer);
 
   fadeState = signal<'fade-in' | 'fade-out'>('fade-in');
 
   // =========================================================================
-  // 1. THE DBMS STORE (Single Source of Truth for all records)
+  // 1. RECORD STORE — every article that came down, keyed by id.
   // =========================================================================
   private articleStore = new Map<string, Article>();
 
   // =========================================================================
-  // 2. LAYOUT PROJECTIONS (Pointers populated by the ingester for the HTML)
+  // 2. LAYOUT BUCKETS — what the template reads.
+  //
+  // Four zones: three fronts (主板 / 次板 / 三版) and 栏目. A front placement
+  // and a 栏目 placement are independent — one article can hold both, and
+  // then it renders in both places. That is the only multi-zone case; the
+  // ingest form makes two fronts unselectable.
+  //
+  // There is exactly ONE 主板, ONE 次板, ONE 三版. Each is three labeled
+  // buckets keyed by 排列. Nothing groups articles into repeated front
+  // "units" — the schema carries no unit identity, so any such grouping
+  // could only be guessed from arrival order.
   // =========================================================================
+  layout: Record<FrontKey, FrontBuckets> = emptyLayout();
 
-  // The rotisserie pool holds all 'intra_section_zone === 1' leads for the hero stack
-  rotisseriePool: Article[] = [];
-  currentLeadIndex = 0;
-  private rotationInterval: any;
-
-  // The getter gracefully connects your rotation engine to the HTML's `topLeadArticle`
-  get topLeadArticle(): Article | null {
-    return this.rotisseriePool.length > 0 ? this.rotisseriePool[this.currentLeadIndex] : null;
-  }
-
-  layout = {
-    rotisserie: { sides: [] as Article[], sections: [] as Article[] },
-    majorFronts: [] as MajorFrontUnit[],
-    halfFronts: [] as HalfFrontUnit[],
-  };
-
+  // 栏目 is three parallel category columns, that shape repeating down the
+  // page until every column has been placed. Rows of three.
   matrixRows: MatrixColumn[][] = [];
 
-  // Static/Mock arrays to prevent HTML errors for your nav/ticker
-  // menuItems: string[] = ['World', 'Politics', 'Business', 'Tech'];
+  // Only 主板 中心 rotates; it is the one bucket whose plurality is a
+  // feature rather than an editorial mistake.
+  currentLeadIndex = 0;
+  private showcaseHead = 0;
+  private rotationInterval: any;
+
   stockData: StockQuote[] = [];
 
+  get rotisseriePool(): Article[] {
+    return this.layout.main.center;
+  }
+
+  get topLeadArticle(): Article | null {
+    return this.rotisseriePool[this.currentLeadIndex] ?? null;
+  }
 
   ngOnInit() {
-
-    console.log ("\n\n\n\ninitialized!\n\n\n\n")
-    // 1. Listen to the RESOLVED data coming from the route
     this.route.data.subscribe(data => {
-      const payload = data['articlePool'];   // now genuinely is Article[]
+      const payload = data['articlePool'] as Article[] | undefined;
       if (payload) {
         this.ingestAndRoute(payload);
         this.startLeadRotation();
@@ -104,135 +85,132 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * THE INGESTER (Flat Array / RDBMS-Aligned)
-   * Expects a single, linear array of articles ordered by layout priority.
-   */
+  ngOnDestroy() {
+    if (this.rotationInterval) {
+      clearInterval(this.rotationInterval);
+    }
+  }
+
+  // ===========================================================================
+  // THE INGESTER
+  //
+  // For each article: read its zone membership, then drop a reference into
+  // every bucket it claims. Two independent tests, no ordering assumptions,
+  // no bucket's contents affecting another's, no state carried between
+  // iterations. Re-running it on the same input in any order produces the
+  // same layout.
+  // ===========================================================================
+
   private ingestAndRoute(rawArticles: Article[]) {
-    // 1. Clear previous state
     this.articleStore.clear();
-    this.rotisseriePool = [];
-    this.layout = {
-      rotisserie: { sides: [], sections: [] },
-      majorFronts: [],
-      halfFronts: []
-    };
+    this.layout = emptyLayout();
     this.matrixRows = [];
+    this.currentLeadIndex = 0;
 
-    const matrixCategoryMap = new Map<string, Article[]>();
+    const byCategory = new Map<string, Article[]>();
 
-    // 2. Execute the Routing Algorithm
     for (const art of rawArticles) {
-
-      // Index the record into the Primary Store
       this.articleStore.set(art.id, art);
-      console.log(art.section_zone)
-      // Route based on the HTML section tags
-      switch (art.section_zone) {
+      const zones = zonesOf(art);
 
+      if (zones.size === 0) {
+        // The ingest form requires a placement, so an untagged row is
+        // legacy or broken data. Say so rather than quietly sweeping it
+        // into 栏目 the way the previous implementation did — a silent
+        // fallback is how bad rows stay invisible.
+        console.warn(`[home] id=${art.id} "${art.title}": no section_zone — not rendered`);
+        continue;
+      }
 
-        case 'rotisserie':
-          if (art.intra_section_zone === 1) this.rotisseriePool.push(art);
-          else if (art.intra_section_zone === 2) this.layout.rotisserie.sides.push(art);
-          else if (art.intra_section_zone === 3) this.layout.rotisserie.sections.push(art);
-          break;
+      // --- fronts -----------------------------------------------------------
+      // Tested independently rather than as a switch: a row that somehow
+      // carries two fronts then renders twice (visible, diagnosable) instead
+      // of landing in whichever branch happened to be checked first.
+      for (const key of FRONT_KEYS) {
+        if (!zones.has(key)) continue;
+        this.placeInFront(key, art);
+      }
 
-          /*
-          * like what even is a current_major. i didn't get the intent.
-          * it is an extremely roundabout way to select the top of the ==1
-          * stack for when a side or bottom arrives, and its hope on a well
-          * formed major-front is hinged on major front half front and bottom
-          * in that order without anything in between, or its a side and bottom rewrite
-          * ,. or entire front rewrite, and then append again .
-
-          * its like this gemini wrote a casino game embedded into my code
-          *
-          * it is fine and within normal behavior for an LLM to do this, but it is
-          * haunting that this is used as a coding tool
-          * thank God Claude exists.
-          * */
-        case 'major_front':
-          if (art.intra_section_zone === 1) {
-            this.layout.majorFronts.push({ main: art, sides: [], sections: [] });
-          } else {
-            const currentMajor = this.layout.majorFronts[this.layout.majorFronts.length - 1];
-            if (currentMajor) {
-              if (art.intra_section_zone === 2) currentMajor.sides.push(art);
-              else if (art.intra_section_zone === 3) currentMajor.sections.push(art);
-            }
-          }
-          break;
-
-        case 'half_front':
-          if (art.intra_section_zone === 1) {
-            this.layout.halfFronts.push({ main: art, sides: [] });
-          } else {
-            const currentHalf = this.layout.halfFronts[this.layout.halfFronts.length - 1];
-            if (currentHalf) {
-              if (art.intra_section_zone === 2) currentHalf.sides.push(art);
-            }
-          }
-          break;
-
-        case 'matrix':
-        default:
-          // Purge anything missing a section_zone to the matrix.
-          // Provide a fallback string so Map doesn't key on null/undefined.
-          const safeCategory = art.category || 'General';
-
-          if (!matrixCategoryMap.has(safeCategory)) {
-            matrixCategoryMap.set(safeCategory, []);
-          }
-          matrixCategoryMap.get(safeCategory)!.push(art);
-          break;
+      // --- 栏目 -------------------------------------------------------------
+      // Independent of any front placement above. 栏目 has no 排列; the
+      // column an article lands in is decided by its category.
+      if (zones.has('column')) {
+        const category = art.category || 'General';
+        if (!byCategory.has(category)) byCategory.set(category, []);
+        byCategory.get(category)!.push(art);
       }
     }
 
-    // 3. Construct Matrix Rows
-    // Transform the category map into an array of columns, then chunk into rows of 3
-    const columns = Array.from(matrixCategoryMap.entries()).map(
-      ([category, articles]) => ({ category, articles })
-    );
+    const columns: MatrixColumn[] = Array.from(byCategory.entries())
+      .map(([category, articles]) => ({ category, articles }));
 
     for (let i = 0; i < columns.length; i += 3) {
       this.matrixRows.push(columns.slice(i, i + 3));
     }
   }
 
-  // 2. Initializer checks the length of the siphoned leads
+  private placeInFront(key: FrontKey, art: Article) {
+    const bucket = this.layout[key];
+
+    switch (art.intra_section_zone) {
+      case SLOT.CENTER:
+        if (key === 'main' && art.category === SHOWCASE_CATEGORY) {
+          bucket.center.splice(this.showcaseHead++, 0, art);
+          break;
+        }
+        // 次板 and 三版 are single blocks, so a second 中心 is an editorial
+        // mistake, not a second block. Render it (losing an article is
+        // worse than an ugly page) but make the mistake audible.
+        if (key !== 'main' && bucket.center.length > 0) {
+          console.warn(`[home] id=${art.id}: second 中心 on ${key}, which is a single block`);
+        }
+        bucket.center.push(art);
+        break;
+
+      case SLOT.SIDE:
+        bucket.side.push(art);
+        break;
+
+      case SLOT.BOTTOM:
+        // 三版 has no 底 — the ingest form does not offer it there.
+        if (key === 'tertiary') {
+          console.warn(`[home] id=${art.id}: 底 on 三版, which has no 底 slot — dropped`);
+        } else {
+          bucket.bottom.push(art);
+        }
+        break;
+
+      default:
+        console.warn(`[home] id=${art.id}: on ${key} with no 排列 (got ${art.intra_section_zone}) — dropped`);
+    }
+  }
+
+  // ===========================================================================
+  // 主板 rotation
+  // ===========================================================================
+
   startLeadRotation() {
-    if (this.rotisseriePool && this.rotisseriePool.length > 0) {
+    if (this.rotationInterval) clearInterval(this.rotationInterval);
+    if (this.rotisseriePool.length > 1) {
       this.rotationInterval = setInterval(() => this.nextLead(), 6700);
     }
   }
 
-  // 3. The Transition Engine
   nextLead() {
     this.fadeState.set('fade-out');
 
     setTimeout(() => {
       if (!this.rotisseriePool.length) return;
 
-      // 1. Just update the index.
-      // Angular will see topLeadArticle change and the Pipe will handle the URL update.
       this.currentLeadIndex = (this.currentLeadIndex + 1) % this.rotisseriePool.length;
 
-      // 2. You don't need to manually set .src anymore!
-      // Just tell the video to load the new source that the pipe just generated.
       const videoEl = this.videoElement?.nativeElement;
-      console.log("\n\n video element", videoEl);
       if (videoEl) {
         videoEl.load();
-        // videoEl.play(); // Keep this commented out as requested
       }
 
       this.fadeState.set('fade-in');
+      this.cdr.markForCheck();
     }, 500);
-  }
-
-  ngOnDestroy() {
-    if (this.rotationInterval) {
-      clearInterval(this.rotationInterval);
-    }
   }
 }

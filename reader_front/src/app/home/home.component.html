@@ -1,63 +1,30 @@
 <div class="container">
 
-  <section class="top-lead-stack" *ngIf="layout.rotisserie">
-    <div class="lead-story" [routerLink]="['/article', topLeadArticle?.slug]" [ngClass]="fadeState()" style="cursor:pointer;">
+  <!-- ===================== 主板 (main) — 中心 rotates ===================== -->
+  <section class="top-lead-stack"
+           *ngIf="layout.main.center.length || layout.main.side.length || layout.main.bottom.length">
+
+    <div class="lead-story"
+         *ngIf="topLeadArticle as lead"
+         [routerLink]="['/article', lead.slug]"
+         [ngClass]="fadeState()"
+         style="cursor:pointer;">
       <div class="lead-content">
-        <span class="category">{{ topLeadArticle?.category }}</span>
-        <h1>{{ topLeadArticle?.title }}</h1>
-        <p>{{ topLeadArticle?.summary }}</p>
+        <span class="category">{{ lead.category }}</span>
+        <h1>{{ lead.title }}</h1>
+        <p>{{ lead.summary }}</p>
       </div>
 
       <div class="media-wrapper">
         @defer (on timer(500ms); prefetch on idle) {
-        <img *ngIf="topLeadArticle?.image" [src]="topLeadArticle?.image" class="lead-image" alt="lead image">
+        <img *ngIf="lead.image" [src]="lead.image" class="lead-image" alt="lead image">
         } @placeholder { <div class="media-skeleton"></div> }
       </div>
 
       <div class="side-news">
-        <div class="side-article" *ngFor="let article of layout.rotisserie.sides" [routerLink]="['/article', article.slug]">
-          <img *ngIf="article.image" [src]="article.image" class="side-image">
-
-          <div class="side-text">
-            <span class="category small">{{ article.category }}</span>
-            <h4>{{ article.title }}</h4>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <section class="secondary-grid">
-      <div class="secondary-column" *ngFor="let article of layout.rotisserie.sections" [routerLink]="['/article', article.slug]">
-        <div class="column-header">{{ article.category }}</div>
-        <div class="secondary-card">
-          <img *ngIf="article.image" [src]="article.image" class="secondary-image">
-          <h3>{{ article.title }}</h3>
-          <p>{{ article.summary }}</p>
-        </div>
-      </div>
-    </section>
-  </section>
-
-  <hr class="section-divider" *ngIf="layout.majorFronts.length > 0">
-
-  <section class="major-container" *ngFor="let front of layout.majorFronts">
-    <div class="top-news">
-      <div class="lead-story" [routerLink]="['/article', front.main.slug]">
-        <div class="lead-content">
-          <span class="category">{{ front.main.category }}</span>
-          <h1>{{ front.main.title }}</h1>
-          <p>{{ front.main.summary }}</p>
-        </div>
-        <div class="media-wrapper">
-
-          @defer (on viewport) {
-          <img [src]="front.main.image" class="hero-media" alt="major front image">
-          } @placeholder { <div class="media-skeleton"></div> }
-        </div>
-      </div>
-
-      <div class="side-news">
-        <div class="side-article" *ngFor="let s of front.sides" [routerLink]="['/article', s.slug]">
+        <div class="side-article"
+             *ngFor="let s of layout.main.side"
+             [routerLink]="['/article', s.slug]">
           <img *ngIf="s.image" [src]="s.image" class="side-image">
           <div class="side-text">
             <span class="category small">{{ s.category }}</span>
@@ -67,33 +34,90 @@
       </div>
     </div>
 
-    <section class="secondary-grid">
-      <div class="secondary-column" *ngFor="let sec of front.sections" [routerLink]="['/article', sec.slug]">
-        <div class="column-header">{{ sec.category }}</div>
+    <section class="secondary-grid" *ngIf="layout.main.bottom.length">
+      <div class="secondary-column"
+           *ngFor="let b of layout.main.bottom"
+           [routerLink]="['/article', b.slug]">
+        <div class="column-header">{{ b.category }}</div>
         <div class="secondary-card">
-          <img *ngIf="sec.image" [src]="sec.image" class="secondary-image">
-          <h3>{{ sec.title }}</h3>
+          <img *ngIf="b.image" [src]="b.image" class="secondary-image">
+          <h3>{{ b.title }}</h3>
+          <p>{{ b.summary }}</p>
         </div>
       </div>
     </section>
   </section>
 
-  <section class="top-news half-front-unit" *ngFor="let half of layout.halfFronts">
-    <div class="lead-story" [routerLink]="['/article', half.main.slug]">
+  <hr class="section-divider"
+      *ngIf="layout.sub_main.center.length || layout.sub_main.side.length || layout.sub_main.bottom.length">
+
+  <!-- ===================== 次板 (sub_main) — one block ==================== -->
+  <section class="major-container"
+           *ngIf="layout.sub_main.center.length || layout.sub_main.side.length || layout.sub_main.bottom.length">
+    <div class="top-news">
+      <div class="lead-story"
+           *ngFor="let m of layout.sub_main.center"
+           [routerLink]="['/article', m.slug]">
+        <div class="lead-content">
+          <span class="category">{{ m.category }}</span>
+          <h1>{{ m.title }}</h1>
+          <p>{{ m.summary }}</p>
+        </div>
+        <div class="media-wrapper">
+          @defer (on viewport) {
+          <img *ngIf="m.image" [src]="m.image" class="hero-media" alt="次板">
+          } @placeholder { <div class="media-skeleton"></div> }
+        </div>
+      </div>
+
+      <div class="side-news">
+        <div class="side-article"
+             *ngFor="let s of layout.sub_main.side"
+             [routerLink]="['/article', s.slug]">
+          <img *ngIf="s.image" [src]="s.image" class="side-image">
+          <div class="side-text">
+            <span class="category small">{{ s.category }}</span>
+            <h4>{{ s.title }}</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="secondary-grid" *ngIf="layout.sub_main.bottom.length">
+      <div class="secondary-column"
+           *ngFor="let b of layout.sub_main.bottom"
+           [routerLink]="['/article', b.slug]">
+        <div class="column-header">{{ b.category }}</div>
+        <div class="secondary-card">
+          <img *ngIf="b.image" [src]="b.image" class="secondary-image">
+          <h3>{{ b.title }}</h3>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ============ 三版 (tertiary) — one block, 中心 + 侧 only ============= -->
+  <section class="top-news half-front-unit"
+           *ngIf="layout.tertiary.center.length || layout.tertiary.side.length">
+    <div class="lead-story"
+         *ngFor="let m of layout.tertiary.center"
+         [routerLink]="['/article', m.slug]">
       <div class="lead-content">
-        <span class="category">{{ half.main.category }}</span>
-        <h3>{{ half.main.title }}</h3>
-        <p>{{ half.main.summary }}</p>
+        <span class="category">{{ m.category }}</span>
+        <h3>{{ m.title }}</h3>
+        <p>{{ m.summary }}</p>
       </div>
       <div class="media-wrapper">
         @defer (on viewport) {
-        <img [src]="half.main.image" class="hero-media" alt="half front image">
+        <img *ngIf="m.image" [src]="m.image" class="hero-media" alt="三版">
         } @placeholder { <div class="media-skeleton"></div> }
       </div>
     </div>
 
     <div class="side-news">
-      <div class="side-article" *ngFor="let s of half.sides" [routerLink]="['/article', s.slug]">
+      <div class="side-article"
+           *ngFor="let s of layout.tertiary.side"
+           [routerLink]="['/article', s.slug]">
         <img *ngIf="s.image" [src]="s.image" class="side-image">
         <div class="side-text">
           <span class="category small">{{ s.category }}</span>
@@ -103,11 +127,14 @@
     </div>
   </section>
 
+  <!-- ===== 栏目 (column) — three category columns per row, repeating ====== -->
   <section class="matrix-base-container" *ngFor="let row of matrixRows">
     <div class="secondary-grid">
       <div class="secondary-column" *ngFor="let col of row">
         <div class="column-header">{{ col.category }}</div>
-        <div class="secondary-card matrix-item" *ngFor="let art of col.articles" [routerLink]="['/article', art.slug]">
+        <div class="secondary-card matrix-item"
+             *ngFor="let art of col.articles"
+             [routerLink]="['/article', art.slug]">
           <img *ngIf="art.image" [src]="art.image" class="secondary-image">
           <h3>{{ art.title }}</h3>
         </div>

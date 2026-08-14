@@ -12,6 +12,7 @@
         <time class="byline-date" [attr.datetime]="article()?.publishedAt">
           {{ article()?.publishedAt | date: 'yyyy-MM-dd HH:mm' }}
         </time>
+        <span class="view-count" *ngIf="article() as a">{{ viewCountLabel() }} 阅读</span>
         <ng-container *ngIf="showUpdated()">
           <span class="byline-sep">·</span>
           <time class="byline-date byline-updated" [attr.datetime]="article()?.updatedAt">

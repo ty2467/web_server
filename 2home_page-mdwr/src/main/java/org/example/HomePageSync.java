@@ -273,6 +273,11 @@ public class HomePageSync {
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
                 Integer intraZone = (Integer) rs.getObject("intra_section_zone");
+                // section_zone is a SET column on both sides — getString gives
+                // the comma form ("sub_main,column", always in SET-definition
+                // order) and setString takes it back unchanged. Nothing here
+                // parses it; the only consumer that needs members individually
+                // is the homepage read query, via FIND_IN_SET.
                 return new Row(
                         rs.getLong("id"), rs.getString("title"), rs.getString("summary"),
                         rs.getString("author"), rs.getString("category"), rs.getTimestamp("date_time"),
@@ -288,7 +293,7 @@ public class HomePageSync {
     /*bruv the slug is literally built with id. no mistake. i argue
      * that a pure slug no id format would be preferred.*/
     private static String buildSlug(String title, long editorsDbId) {
-        return slugify(title);
+        return slugify(title) + "-" + editorsDbId;
     }
 
     private static String slugify(String title) {

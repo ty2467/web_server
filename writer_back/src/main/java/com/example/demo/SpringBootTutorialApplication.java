@@ -264,6 +264,7 @@ public class SpringBootTutorialApplication {
                 req.setSection_zone(rs.getString("section_zone"));
                 req.setLead_image_url(rs.getString("lead_image_url"));
                 req.setLead_image_caption(rs.getString("lead_image_caption"));
+                req.setView_count(rs.getInt("view_count"));
 
                 int intraZone = rs.getInt("intra_section_zone");
                 req.setIntra_section_zone(rs.wasNull() ? null : intraZone);
@@ -323,6 +324,41 @@ public class SpringBootTutorialApplication {
         }
     }
 
+
+    //    ------helper methods for ingest
+    private static final java.util.Set<String> FRONTS =
+            java.util.Set.of("main", "sub_main", "tertiary");
+    private static final java.util.Set<String> ZONES =
+            java.util.Set.of("main", "sub_main", "tertiary", "column");
+
+    /**
+     * The UI can't produce two fronts, so this isn't validation an editor
+     * will ever hit — it's a guard against a hand-rolled POST. One member
+     * outside the SET definition makes MariaDB reject the whole value, not
+     * just that member, so unknowns are dropped rather than passed through.
+     */
+    private String normalizeSectionZone(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        java.util.LinkedHashSet<String> keep = new java.util.LinkedHashSet<>();
+        boolean frontTaken = false;
+        for (String part : raw.split(",")) {
+            String z = part.trim();
+            if (!ZONES.contains(z)) continue;
+            if (FRONTS.contains(z)) {
+                if (frontTaken) continue;
+                frontTaken = true;
+            }
+            keep.add(z);
+        }
+        return keep.isEmpty() ? null : String.join(",", keep);
+    }
+
+    private boolean hasFront(String sectionZone) {
+        if (sectionZone == null) return false;
+        for (String z : sectionZone.split(",")) if (FRONTS.contains(z.trim())) return true;
+        return false;
+    }
+
     /**
      * ingest metadata + content_blocks (Tiptap JSON, media urls, captions,
      * alignment — everything the editor produced) as one row, one write.
@@ -335,56 +371,37 @@ public class SpringBootTutorialApplication {
 
         // Jackson 3 exceptions are unchecked, so no try/catch needed here —
         // a serialization failure falls through to the outer handler below.
+        int viewCount = article.getView_count() == null || article.getView_count() < 0
+                ? 0 : article.getView_count();
+
         List<ContentBlock> blocks = article.getContent_blocks() != null
                 ? article.getContent_blocks() : new ArrayList<>();
-        
-        for(ContentBlock thisblock: blocks){
-            String theType = thisblock.getType();
-            if (theType == "image" || theType == "video"){
-                //LLM complain on good ground this would be error but this subcomponents 
-		//array is being grown and is indexed at any time without any issue
-		String[] subcomponents = {};
-                String wrong_url = thisblock.getMedia_url();
-                int j = 0;
-                for(int i = 0; i<wrong_url.length(); i++){
-                    subcomponents[j] += wrong_url.charAt(i);
-
-                    if (wrong_url.charAt(i) == '/' && wrong_url.charAt(i+1) != '/'){
-                        j++;
-                    }
-
-                }
-                //fortunately this same name is the one image uploader gets from frontend
-                String gotten_name = subcomponents[-1];
-                String correct_url = IP_PREFIX + targetSubDir + gotten_name;
-                thisblock.setMedia_url(correct_url);
-                System.out.println(correct_url);
-            }
-
-
-        }
 
         String blocksJson = jsonMapper.writeValueAsString(blocks);
         boolean isUpdate = articleId != null && articleId > 0;
 
-        if ("column".equals(article.getSection_zone())) {
-            article.setIntra_section_zone(-1);
+        String sectionZone = normalizeSectionZone(article.getSection_zone());
+        // 排列 belongs to a front. 栏目-only placement has no slot number,
+        // and intra_section_zone is tinyint UNSIGNED — the old -1 sentinel
+        // could never have stored anyway.
+        if (!hasFront(sectionZone)) {
+            article.setIntra_section_zone(null);
         }
 
         try {
             if (isUpdate) {
                 String updateSql = "UPDATE editors_db SET title=?, summary=?, author=?, category=?, " +
                         "date_time=?, section_zone=?, intra_section_zone=?, lead_image_url=?, lead_image_caption=?, " +
-                        "content_blocks=? WHERE id=?";
+                        "content_blocks=?, view_count=? WHERE id=?";
                 jdbcTemplate.update(updateSql,
                         article.getTitle(), article.getSummary(), article.getAuthor(), article.getCategory(),
                         parseDateTimeLocal(article.getDate_time()), article.getSection_zone(),
                         article.getIntra_section_zone(), article.getLead_image_url(), article.getLead_image_caption(),
-                        blocksJson, articleId);
+                        blocksJson, viewCount, articleId);
             } else {
                 String insertSql = "INSERT INTO editors_db (title, summary, author, category, " +
                         "date_time, section_zone, intra_section_zone, lead_image_url, lead_image_caption, " +
-                        "content_blocks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        "content_blocks, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 KeyHolder keyHolder = new GeneratedKeyHolder();
                 jdbcTemplate.update(connection -> {
@@ -403,6 +420,7 @@ public class SpringBootTutorialApplication {
                     ps.setString(8, article.getLead_image_url());
                     ps.setString(9, article.getLead_image_caption());
                     ps.setString(10, blocksJson);
+                    ps.setInt(11, viewCount);
                     return ps;
                 }, keyHolder);
 
@@ -436,6 +454,7 @@ class ArticleRequest {
     private String lead_image_caption;
 
     private List<ContentBlock> content_blocks;
+    private Integer view_count;
 
     // Getters and Setters
     public String getTitle() { return title; }
@@ -462,6 +481,8 @@ class ArticleRequest {
     // Add Getter and Setter for ID
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Integer getView_count() { return view_count; }
+    public void setView_count(Integer view_count) { this.view_count = view_count; }
 }
 
 /**
