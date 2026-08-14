@@ -26,15 +26,37 @@
             <input type="datetime-local" formControlName="date_time">
           </div>
           <div class="meta-field">
-            <label>位置<span class="required-mark">*</span></label>
-            <select formControlName="section_zone">
-              <option value="">— 选择 —</option>
-              <option *ngFor="let opt of sectionZoneOptions" [value]="opt.value">{{ opt.label }}</option>
-            </select>
+            <label>浏览量</label>
+            <input type="number" min="0" step="1" formControlName="view_count" placeholder="0">
           </div>
+
+          <!-- 位置: at most one front (radio enforces it), 栏目 alongside -->
+          <div class="meta-field zone-field">
+            <label>位置<span class="required-mark">*</span></label>
+            <div class="zone-picker">
+              <div class="zone-group">
+                <label class="zone-opt" *ngFor="let opt of frontOptions">
+                  <input type="radio" formControlName="front" [value]="opt.value"> {{ opt.label }}
+                </label>
+                <!-- Required, not decoration: a radio group cannot return to
+                     unselected once clicked, and 栏目-only is a legal placement. -->
+                <label class="zone-opt">
+                  <input type="radio" formControlName="front" [value]="null"> 无
+                </label>
+              </div>
+              <div class="zone-group">
+                <label class="zone-opt">
+                  <input type="checkbox" formControlName="in_column"> 栏目
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="meta-field">
             <label>排列<span class="required-mark" *ngIf="!intraSectionZoneDisabled">*</span></label>
-            <select formControlName="intra_section_zone" [disabled]="intraSectionZoneDisabled">
+            <!-- No [disabled] binding: the control's own disabled state is
+                 driven from syncIntraZoneValidity(). -->
+            <select formControlName="intra_section_zone">
               <option [ngValue]="null">— 选择 —</option>
               <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>
             </select>
@@ -128,15 +150,43 @@
             <button type="button" class="remove-media" (click)="removeBlock(block.localId)">✕</button>
           </div>
 
+          <!-- VIDEO. previewUrl is the stored public URL on a reloaded
+               article and the freshly-uploaded URL otherwise, so both look
+               identical. The player is only mounted when there's something
+               to play, and stops its own clicks from reopening the picker.
+               preload="metadata" fetches the header, not the file. -->
           <div *ngIf="block.type === 'video'" class="media-container">
-            <div class="video-uploader" (click)="vidInput.click()" [class.processing]="uiState.get(block.localId)?.isUploading">
-              <div class="video-info" *ngIf="uiState.get(block.localId)?.file as f">🎥 {{ f.name }}</div>
-              <div *ngIf="!uiState.get(block.localId)?.file" class="upload-prompt">+ Select Video</div>
+            <div class="video-uploader"
+                 [class.has-media]="uiState.get(block.localId)?.previewUrl"
+                 [class.processing]="uiState.get(block.localId)?.isUploading"
+                 (click)="vidInput.click()">
+
+              <video *ngIf="uiState.get(block.localId)?.previewUrl as src"
+                     [src]="src"
+                     class="video-preview"
+                     controls
+                     preload="metadata"
+                     (click)="$event.stopPropagation()"></video>
+
+              <div class="upload-prompt"
+                   *ngIf="!uiState.get(block.localId)?.previewUrl && !uiState.get(block.localId)?.isUploading">
+                + Select Video
+              </div>
+
               <div class="progress-container" *ngIf="uiState.get(block.localId)?.isUploading">
                 <div class="progress-bar" [style.width.%]="uiState.get(block.localId)?.progress"></div>
                 <span class="progress-text">{{ uiState.get(block.localId)?.progress }}%</span>
               </div>
             </div>
+
+            <div class="media-controls" *ngIf="uiState.get(block.localId)?.previewUrl">
+              <span class="video-name">🎥 {{ fileNameOf(uiState.get(block.localId)?.previewUrl) }}</span>
+              <button type="button" class="replace-media" (click)="vidInput.click()">Replace</button>
+              <input type="text" class="caption-input" placeholder="Caption (optional)"
+                     [value]="captionOf(block)"
+                     (input)="onCaptionInput($event, block.localId)">
+            </div>
+
             <input type="file" #vidInput (change)="onVideoSelected($event, block.localId)" hidden accept="video/*">
             <button type="button" class="remove-media" (click)="removeBlock(block.localId)">✕</button>
           </div>

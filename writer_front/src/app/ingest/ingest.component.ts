@@ -1,6 +1,9 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
+import {
+  ReactiveFormsModule, FormGroup, FormControl, Validators,
+  AbstractControl, ValidationErrors
+} from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Params } from '@angular/router';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
@@ -19,6 +22,20 @@ import {
 } from './ingest-block.model';
 import { parseClipboardToBlockSeeds } from './paste.util';
 import { MediaUploadService } from './media-upload.service';
+
+/** 位置 — the three mutually-exclusive fronts. 栏目 is not one of these. */
+export type ZoneFront = 'main' | 'sub_main' | 'tertiary';
+
+/**
+ * section_zone used to be one required <select>. It is now a MariaDB SET,
+ * and the UI splits it into a radio group (the fronts, mutually exclusive
+ * by construction) plus a checkbox (栏目, which combines with a front).
+ * "At least one placement" therefore becomes a group-level rule rather
+ * than a control-level one.
+ */
+function zonePicked(g: AbstractControl): ValidationErrors | null {
+  return (g.get('front')?.value || g.get('in_column')?.value) ? null : { zoneRequired: true };
+}
 
 @Component({
   selector: 'app-ingest',
@@ -79,21 +96,20 @@ export class IngestComponent implements OnInit, OnDestroy {
       author: new FormControl(''),
       category: new FormControl('', [Validators.required]),
       date_time: new FormControl(this.getCurrentDateTime()),
-      section_zone: new FormControl('', [Validators.required]),
+      front: new FormControl<ZoneFront | null>(null),
+      in_column: new FormControl(false),
       intra_section_zone: new FormControl<number | null>(null, [Validators.min(0), Validators.max(255)]),
       lead_image_url: new FormControl(''),
-      lead_image_caption: new FormControl('')
-    });
-    // Keep 排列 (intra_section_zone) in sync with 位置 (section_zone): whenever
-    // the zone changes to something that doesn't offer the currently-selected
-    // permutation (or offers none at all — column/no zone), clear it instead
-    // of leaving a now-invalid stored number sitting in the form.
-    this.metaForm.get('section_zone')!.valueChanges.subscribe(() => {
-      const intraCtrl = this.metaForm.get('intra_section_zone')!;
-      const stillValid = this.intraSectionZoneOptions.some(opt => opt.value === intraCtrl.value);
-      if (!stillValid) intraCtrl.setValue(null);
-    });
+      lead_image_caption: new FormControl(''),
+      view_count: new FormControl<number>(0, [Validators.min(0), Validators.max(4294967295)]),
+    }, { validators: zonePicked });
 
+    // ONE rule, ONE place. Previously this subscription hand-inlined half of
+    // syncIntraZoneValidity() while the method itself was never called from
+    // anywhere — so the required-validator half of the rule never ran and
+    // 排列 could be left blank on a front. The subscription now delegates.
+    this.metaForm.get('front')!.valueChanges.subscribe(() => this.syncIntraZoneValidity());
+    this.syncIntraZoneValidity();
 
     this.route.queryParams.subscribe((params: Params) => {
       this.clearAllBlocks();
@@ -103,75 +119,121 @@ export class IngestComponent implements OnInit, OnDestroy {
         this.loadArticleForEdit(idFromUrl);
       } else {
         this.editingId = null;
-        this.metaForm.reset({ date_time: this.getCurrentDateTime() });
+        this.resetMetaForm();
         this.leadImagePreview = null;
         this.insertBlock('paragraph', null);
       }
     });
   }
 
+  ngOnDestroy() {
+    this.editors.forEach(ed => ed.destroy());
+  }
+
+  // ===========================================================================
+  // 位置 (section_zone) / 排列 (intra_section_zone)
+  //
+  // Stored values are stable English keys / fixed numbers; only the labels
+  // shown in the UI are Chinese. section_zone leaves this component as the
+  // comma string the SET column takes ('sub_main,column'); nothing between
+  // the radio and the POST knows that string exists.
+  // ===========================================================================
+
+  readonly frontOptions: { value: ZoneFront; label: string }[] = [
+    { value: 'main',     label: '主板' },
+    { value: 'sub_main', label: '次板' },
+    { value: 'tertiary', label: '三版' }
+  ];
+
+  // Fixed numeric encoding, independent of which subset is offered:
+  // 0 = 中心, 1 = 侧, 2 = 底.
+  private readonly intraFull: { value: number; label: string }[] = [
+    { value: 0, label: '中心' },
+    { value: 1, label: '侧' },
+    { value: 2, label: '底' }
+  ];
+  private readonly intraNoBottom = this.intraFull.slice(0, 2); // 中心, 侧 only
+
+  get intraSectionZoneOptions(): { value: number; label: string }[] {
+    const front = this.metaForm?.get('front')?.value;
+    if (front === 'main' || front === 'sub_main') return this.intraFull;
+    if (front === 'tertiary') return this.intraNoBottom;
+    return []; // 栏目-only, or nothing picked yet — 排列 has no meaning
+  }
+
+  get intraSectionZoneDisabled(): boolean {
+    return !this.metaForm?.get('front')?.value;
+  }
+
+  /**
+   * Keeps 排列 consistent with 位置: drops a now-unofferable value, and
+   * makes the field required exactly when a front is selected. Disabled
+   * state is driven from the control rather than a template [disabled]
+   * binding — a disabled control is omitted from form.value entirely, so
+   * the two must not be allowed to disagree.
+   */
   private syncIntraZoneValidity() {
-    const zone = this.metaForm.get('section_zone')!.value;
+    const front = this.metaForm.get('front')!.value;
     const intraCtrl = this.metaForm.get('intra_section_zone')!;
 
     const stillValid = this.intraSectionZoneOptions.some(opt => opt.value === intraCtrl.value);
     if (!stillValid) intraCtrl.setValue(null, { emitEvent: false });
 
     const validators = [Validators.min(0), Validators.max(255)];
-    if (zone !== 'column') validators.push(Validators.required);
+    if (front) validators.push(Validators.required);
     intraCtrl.setValidators(validators);
+
+    if (front) intraCtrl.enable({ emitEvent: false });
+    else intraCtrl.disable({ emitEvent: false });
+
     intraCtrl.updateValueAndValidity({ emitEvent: false });
   }
-  ngOnDestroy() {
-    this.editors.forEach(ed => ed.destroy());
+
+  /** front + in_column -> the SET string. Called once, at submit. */
+  private buildSectionZone(): string {
+    const v = this.metaForm.getRawValue();
+    return [v.front, v.in_column ? 'column' : null].filter(Boolean).join(',');
   }
 
+  /** The SET string -> front + in_column. Called once, on edit load. */
+  private applySectionZone(sz: string | null) {
+    const parts = (sz ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    this.metaForm.patchValue({
+      front: (parts.find(p => p !== 'column') as ZoneFront) ?? null,
+      in_column: parts.includes('column')
+    });
+  }
+
+  private resetMetaForm() {
+    // Explicit zone defaults: a bare reset() sets in_column to null rather
+    // than false, which desyncs the checkbox from the control.
+    this.metaForm.reset({
+      date_time: this.getCurrentDateTime(),
+      front: null,
+      in_column: false,
+      view_count: 0
+    });
+    this.syncIntraZoneValidity();
+  }
+
+  /**
+   * <input type="datetime-local"> wants local wall-clock time as
+   * 'yyyy-MM-ddTHH:mm'. Built from local date parts rather than by
+   * subtracting a hardcoded 7h from UTC — that offset is only correct
+   * during PDT and silently drifts an hour every November.
+   */
   getCurrentDateTime(): string {
     const now = new Date();
-    return new Date(now.getTime() - 7 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+      `T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   }
 
   // Fixed publication categories — the template renders these as a dropdown
   // so editors can't free-type a variant that won't match on the read side.
   readonly categories: string[] = [
-    '美洲头条', '美国观察', '工商新闻', '天天话题', '非常美洲', '精英访谈', 'CES 国际消费电子展'
+    '美洲头条', '美国观察', '工商新闻', '天天话题', '非常美洲', '精英访谈', 'CES 国际消费电子展', '场景展示'
   ];
-
-  // ===========================================================================
-  // 位置 (section_zone) / 排列 (intra_section_zone) — display config.
-  // Stored values are stable English keys / fixed numbers; only the labels
-  // shown in the dropdowns are Chinese. This keeps the DB-facing shape of
-  // metaForm untouched while making the UI unambiguous to click through.
-  // ===========================================================================
-
-  readonly sectionZoneOptions: { value: string; label: string }[] = [
-    { value: 'main',     label: '主板' },   // zhu ye — main page
-    { value: 'sub_main',  label: '次板' }, // ci zhu ye — major front
-    { value: 'tertiary',  label: '三版' },   // san ban — half front
-    { value: 'column',    label: '栏目' }    // lan mu — columns
-  ];
-
-  // Fixed numeric encoding, independent of which subset is offered:
-  // 0 = center, 1 = side, 2 = bottom.
-  private readonly intraFull: { value: number; label: string }[] = [
-    { value: 0, label: '中心' }, // zhong xin — center
-    { value: 1, label: '侧' },   // ce — side
-    { value: 2, label: '底' }    // di — bottom
-  ];
-  private readonly intraNoBottom = this.intraFull.slice(0, 2); // center, side only
-
-  get intraSectionZoneOptions(): { value: number; label: string }[] {
-    const zone = this.metaForm?.get('section_zone')?.value;
-    if (zone === 'main' || zone === 'sub_main') return this.intraFull;
-    if (zone === 'tertiary') return this.intraNoBottom;
-    return []; // no zone selected yet, or 'column' — field is disabled
-  }
-
-  get intraSectionZoneDisabled(): boolean {
-    const zone = this.metaForm?.get('section_zone')?.value;
-    return !zone || zone === 'column';
-  }
-
   get lastBlockId(): string | null {
     return this.blocks.length ? this.blocks[this.blocks.length - 1].localId : null;
   }
@@ -403,7 +465,6 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   // ===========================================================================
   // Lead image — article-level, singular, lives in metaForm not blocks[].
-  // Same upload service as content-block images; no align (not requested).
   // ===========================================================================
 
   onLeadImageSelected(event: Event) {
@@ -491,6 +552,11 @@ export class IngestComponent implements OnInit, OnDestroy {
       });
       const block = this.findBlock(localId);
       if (block && !isParagraph(block)) block.url = url;
+
+      // Point the preview at the uploaded file's public URL, exactly as a
+      // reloaded block does. Without this a just-uploaded video renders
+      // differently from the same video after a page reload.
+      state.previewUrl = url;
       this.status = '';
     } catch (err: any) {
       this.status = 'Video upload failed: ' + (err?.message || err?.statusText || 'unknown error');
@@ -515,6 +581,11 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   loadArticleForEdit(id: string) {
     this.http.get<any>(`${this.baseURL}/articles/${id}`).subscribe(data => {
+      // 位置 FIRST: patching front fires syncIntraZoneValidity, which clears
+      // 排列 if it isn't offerable. Loading 排列 before the front would
+      // therefore wipe the value that was just loaded.
+      this.applySectionZone(data.section_zone);
+
       this.metaForm.patchValue({
         id: data.id,
         title: data.title,
@@ -522,9 +593,9 @@ export class IngestComponent implements OnInit, OnDestroy {
         author: data.author,
         category: data.category,
         date_time: data.date_time,
-        section_zone: data.section_zone,
         intra_section_zone: data.intra_section_zone,
         lead_image_url: data.lead_image_url,
+        view_count: data.view_count ?? 0,
         lead_image_caption: data.lead_image_caption
       });
       this.leadImagePreview = data.lead_image_url || null;
@@ -540,7 +611,11 @@ export class IngestComponent implements OnInit, OnDestroy {
           this.blocks.push(block);
           this.uiState.set(block.localId, {
             ...emptyUIState(),
-            previewUrl: isParagraph(block) ? null : block.url,
+            // Images AND videos: previewUrl is the stored public URL. The
+            // bytes were never lost — media_url survives the round trip in
+            // content_blocks. The video simply had no template branch that
+            // read it, so it rendered as an empty picker.
+            previewUrl: isParagraph(block) ? null : (block.url || null),
             charCount: isParagraph(block) ? this.textLength(block.json) : 0
           });
           if (isParagraph(block)) this.mountEditor(block);
@@ -557,8 +632,15 @@ export class IngestComponent implements OnInit, OnDestroy {
   submit() {
     if (!this.metaForm.valid) return;
 
+    // getRawValue, not value: intra_section_zone is DISABLED whenever no
+    // front is picked, and value silently omits disabled controls — the
+    // field would vanish from the payload rather than arriving null.
+    // front/in_column are UI-side only and must not reach the wire.
+    const { front, in_column, ...meta } = this.metaForm.getRawValue();
+
     const payload = {
-      ...this.metaForm.value,
+      ...meta,
+      section_zone: this.buildSectionZone(),
       content_blocks: this.blocks.map(blockToDto)
     };
 
@@ -574,7 +656,7 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   private resetForm() {
     this.clearAllBlocks();
-    this.metaForm.reset({ date_time: this.getCurrentDateTime() });
+    this.resetMetaForm();
     this.leadImagePreview = null;
     this.insertBlock('paragraph', null);
   }
@@ -600,6 +682,12 @@ export class IngestComponent implements OnInit, OnDestroy {
   setAlign(localId: string, align: ImageAlign) {
     const block = this.findBlock(localId);
     if (block && !isParagraph(block)) block.align = align;
+  }
+
+  /** Filename tail of a stored media URL, for the video block's label. */
+  fileNameOf(url: string | null | undefined): string {
+    if (!url) return '';
+    return url.substring(url.lastIndexOf('/') + 1);
   }
 
   get isAnyBlockUploading(): boolean {

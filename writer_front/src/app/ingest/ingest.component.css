@@ -1054,3 +1054,151 @@ button:disabled {
   height: 12px;
   background: rgba(0, 0, 0, 0.05);
 }
+
+/*css of select more than one section_zone*/
+.zone-field { grid-column: 1 / -1; }
+
+.zone-picker { display: flex; flex-wrap: wrap; gap: 10px 22px; padding: 4px 0 12px; }
+
+.zone-group { display: flex; gap: 16px; align-items: center; }
+.zone-group + .zone-group {
+  padding-left: 22px;
+  border-left: 1px solid rgba(238, 129, 43, 0.15);
+}
+
+.meta-field .zone-opt {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-size: 14px; font-weight: 600; color: #444;
+  text-transform: none; letter-spacing: 0; cursor: pointer;
+}
+
+.zone-opt input[type="radio"],
+.zone-opt input[type="checkbox"] {
+  accent-color: #ee812b;
+  width: 16px; height: 16px; margin: 0; cursor: pointer;
+}
+
+/* ==========================================================================
+   APPEND TO ingest.component.css — nothing above needs changing.
+   ========================================================================== */
+
+/* --- 位置 picker -----------------------------------------------------------
+   .meta-row is a 3-column grid, so the picker spans it. The global
+   `.meta-field label` rule uppercases + orange-ifies every label inside a
+   meta-field, which would hit each option's own <label>; .zone-opt undoes
+   that locally rather than weakening the shared rule. */
+.zone-field { grid-column: 1 / -1; }
+
+.zone-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  padding: 4px 0 12px;
+}
+
+.zone-group { display: flex; gap: 16px; align-items: center; }
+
+.zone-group + .zone-group {
+  padding-left: 22px;
+  border-left: 1px solid rgba(238, 129, 43, 0.15);
+}
+
+.meta-field .zone-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.zone-opt input[type="radio"],
+.zone-opt input[type="checkbox"] {
+  accent-color: #ee812b;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* --- required marker ------------------------------------------------------
+   Was referenced in the template but never defined, so the asterisks
+   inherited the label's orange uppercase and didn't read as markers. */
+.required-mark {
+  color: #d9534f;
+  margin-left: 3px;
+  font-weight: 700;
+}
+
+/* --- video block ----------------------------------------------------------
+   Mirrors .image-uploader's geometry so a video block and an image block
+   occupy the same shape in the canvas. */
+.video-uploader {
+  width: 100%;
+  min-height: 220px;
+  max-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.03);
+  border: 2px dashed rgba(238, 129, 43, 0.2);
+  border-radius: 24px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+/* Once there's something to play the dashed "drop here" affordance is a lie —
+   the click target moves to the Replace button below. */
+.video-uploader.has-media {
+  border-style: solid;
+  border-color: rgba(238, 129, 43, 0.25);
+  background: #000;
+  cursor: default;
+}
+
+.video-preview {
+  width: 100%;
+  max-height: 600px;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+.video-name {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #888;
+  font-family: 'Monaco', monospace;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replace-media {
+  width: auto;
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(238, 129, 43, 0.1);
+  color: #ee812b;
+  border: 1px solid rgba(238, 129, 43, 0.2);
+  border-radius: 10px;
+  box-shadow: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.replace-media:hover {
+  background: #ee812b;
+  color: #fff;
+  transform: none;
+  box-shadow: none;
+}
