@@ -5,19 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="63173836-54a7-41de-9824-ae20820e3924" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../2home_page-mdwr/src/main/java/org/example/HomePageSync.java" beforeDir="false" afterPath="$PROJECT_DIR$/../2home_page-mdwr/src/main/java/org/example/HomePageSync.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/java/com/example/demo/SpringBootTutorialApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_back/src/main/java/com/example/demo/SpringBootTutorialApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/resources/static/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_back/src/main/resources/static/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/resources/static/main-UZAKMPCN.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_front/src/app/category/category.component.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_front/src/app/category/category.component.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_front/src/app/home/home.component.html" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_front/src/app/home/home.component.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_front/src/app/home/home.component.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_front/src/app/home/home.component.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/java/com/example/demo/SpringBootTutorialApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_back/src/main/java/com/example/demo/SpringBootTutorialApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/resources/static/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_back/src/main/resources/static/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/resources/static/main-7QGDZSFN.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_front/src/app/ingest/ingest.component.css" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_front/src/app/ingest/ingest.component.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_front/src/app/ingest/ingest.component.html" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_front/src/app/ingest/ingest.component.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_front/src/app/ingest/ingest.component.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_front/src/app/ingest/ingest.component.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
