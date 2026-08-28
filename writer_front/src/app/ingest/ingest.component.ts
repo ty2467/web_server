@@ -439,30 +439,41 @@ export class IngestComponent implements OnInit, OnDestroy {
       state.isUploading = true;
       this.cdr.detectChanges();
 
-      const file = sourceFile ?? (remoteUrl ? await this.mediaUpload.fetchRemoteAsFile(remoteUrl) : null);
-      if (!file) return;
+      let url: string;
 
-      state.file = file;
-      const reader = new FileReader();
-      reader.onload = () => { state.previewUrl = reader.result as string; this.cdr.detectChanges(); };
-      reader.readAsDataURL(file);
+      if (sourceFile) {
+        // Clipboard bytes — already ours, existing path.
+        state.file = sourceFile;
+        const reader = new FileReader();
+        reader.onload = () => { state.previewUrl = reader.result as string; this.cdr.detectChanges(); };
+        reader.readAsDataURL(sourceFile);
 
-      const url = await this.mediaUpload.uploadImage(file, pct => {
-        state.progress = pct;
+        url = await this.mediaUpload.uploadImage(sourceFile, pct => {
+          state.progress = pct;
+          this.cdr.detectChanges();
+        });
+      } else if (remoteUrl) {
+        // Foreign URL — the browser won't let us read those bytes, so the
+        // server fetches them. Preview stays on the remote URL until it
+        // resolves; <img> can load what fetch() can't.
+        state.previewUrl = remoteUrl;
         this.cdr.detectChanges();
-      });
+        url = await this.mediaUpload.uploadImageFromUrl(remoteUrl);
+        state.previewUrl = url;
+      } else {
+        return;
+      }
 
       const block = this.findBlock(localId);
       if (block && !isParagraph(block)) block.url = url;
       this.status = '';
     } catch (err: any) {
-      this.status = 'Image paste failed: ' + (err?.message || err?.statusText || 'unknown error');
+      this.status = 'Image paste failed: ' + (err?.error?.error || err?.message || err?.statusText || 'unknown error');
     } finally {
       state.isUploading = false;
       this.cdr.detectChanges();
     }
   }
-
   // ===========================================================================
   // Lead image — article-level, singular, lives in metaForm not blocks[].
   // ===========================================================================

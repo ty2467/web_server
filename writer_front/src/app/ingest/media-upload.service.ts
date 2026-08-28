@@ -48,11 +48,10 @@ export class MediaUploadService {
 
   // For a pasted <img src="https://external..."> — fetch and re-host through
   // our own upload pipeline rather than persisting a foreign URL long-term.
-  async fetchRemoteAsFile(url: string): Promise<File> {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch pasted image: ${res.status}`);
-    const blob = await res.blob();
-    const ext = blob.type.split('/')[1] || 'png';
-    return new File([blob], `pasted-${Date.now()}.${ext}`, { type: blob.type });
+  async uploadImageFromUrl(remoteUrl: string): Promise<string> {
+    const res: any = await firstValueFrom(
+      this.http.post(`${this.baseURL}/ingest/image-from-url`, { url: remoteUrl })
+    );
+    return `${this.mediaHost}/${res.fileName}`;
   }
 }

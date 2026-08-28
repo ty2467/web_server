@@ -438,6 +438,55 @@ public class SpringBootTutorialApplication {
     }
 
 
+    @PostMapping("/api/ingest/image-from-url")
+    public ResponseEntity<?> handleImageFromUrl(@RequestBody Map<String, String> body) {
+        String src = body == null ? null : body.get("url");
+        if (src == null || src.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No url provided"));
+        }
+
+        try {
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                    .build();
+
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(src))
+                    .GET()
+                    .build();
+
+            java.net.http.HttpResponse<InputStream> res = client.send(
+                    req, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+
+            if (res.statusCode() != 200) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "Source returned " + res.statusCode()));
+            }
+
+            String contentType = res.headers().firstValue("content-type").orElse("");
+            if (!contentType.startsWith("image/")) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "Not an image: " + contentType));
+            }
+
+            String ext = contentType.substring("image/".length()).split(";")[0].trim();
+            if (ext.isEmpty()) ext = "jpg";
+            String fileName = "pasted-" + System.currentTimeMillis() + "." + ext;
+
+            Path finalPath = Paths.get(WEB_ROOT, targetSubDir, fileName);
+            Files.createDirectories(finalPath.getParent());
+
+            try (InputStream in = res.body()) {
+                Files.copy(in, finalPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            return ResponseEntity.ok(Map.of("fileName", fileName));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
 
 

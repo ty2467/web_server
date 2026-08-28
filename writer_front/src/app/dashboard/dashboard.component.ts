@@ -66,6 +66,7 @@ export class DashboardComponent implements OnInit {
     this.fetchEditorialData();
   }
 
+
   /**
    * request dashboard data.
    * */
