@@ -71,11 +71,12 @@ public class HomePageSync {
 //        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.72:3306/phoenix_web"); 123.189
 //        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.0.176:3306/phoenix_web");
 //        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.189:3306/phoenix_web");
-        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.214:3306/phoenix_web");
+        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://localhost:3306/phoenix_web");
 
         Map<String, String> dotenv = loadDotEnv();
-        String dbUser = dotenv.get("PWUSER");
-        String dbPass = dotenv.get("PWPWD");
+        //PWUSER PWPSWD were so dumb names. also dumb remote.
+        String dbUser = dotenv.get("db_user");
+        String dbPass = dotenv.get("db_pswd");
 
         if (dbUser == null || dbPass == null) {
             throw new IllegalStateException(

@@ -76,8 +76,8 @@ public class EditorsDisplaySync {
         String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.214:3306/phoenix_web");
 
         Map<String, String> dotenv = loadDotEnv();
-        String dbUser = dotenv.get("PWUSER");
-        String dbPass = dotenv.get("PWPWD");
+        String dbUser = dotenv.get("db_user");
+        String dbPass = dotenv.get("db_pswd");
 
         if (dbUser == null || dbPass == null) {
             throw new IllegalStateException(

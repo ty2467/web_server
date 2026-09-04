@@ -26,17 +26,6 @@ class ArticleDetailController {
 
     private final JdbcTemplate jdbcTemplate;
 
-    // ASSUMPTION: DATETIME columns in article_display carry no timezone —
-    // they're whatever the editor's browser sent via <input datetime-local>
-    // (see writer_back's parseDateTimeLocal). Configure the zone they were
-    // actually entered in via app.editorial-zone; defaulting to system
-    // zone is very likely wrong the moment this deploys anywhere but the
-    // editor's own machine.
-    @Value("${app.editorial-zone:" + "#{T(java.time.ZoneId).systemDefault().getId()}" + "}")
-    private String editorialZoneId;
-
-    @Value("${app.base-url:http://192.168.123.72}")
-    private String baseUrl;
 
     ArticleDetailController(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;

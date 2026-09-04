@@ -119,7 +119,6 @@ public class SpringBootTutorialApplication {
      * private locations opening the browser in this testing environment.
      * change into 76.81.220.162 in production. that's where nginx will listen eh.
      */
-    private static final String IP_PREFIX = "http://192.168.123.72"; //  for local dev
     // The subdirectory is a variable with your "media" default
     private String targetSubDir = "media";
 
