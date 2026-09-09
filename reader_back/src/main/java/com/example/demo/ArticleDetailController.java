@@ -25,7 +25,11 @@ import java.util.List;
 class ArticleDetailController {
 
     private final JdbcTemplate jdbcTemplate;
+    @Value("${app.base-url}")
+    private String baseUrl;
 
+    @Value("${app.editorial-zone}")
+    private String editorialZoneId;
 
     ArticleDetailController(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;

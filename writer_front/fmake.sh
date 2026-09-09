@@ -1,9 +1,11 @@
 #! /bin/bash
-/Users/phoenixtvmedia/web_server/writer_back/src/main/resources/static/dl.sh
-./build.sh
-./mfs.sh
+ENV_FILE=~/.env
+cms_deployment=$(sed -nE 's/^cms_deployment[[:space:]]*=[[:space:]]*(.*)$/\1/p' "$ENV_FILE")
+clear_destination = "${cms_deployment}/dl.sh"
+"clear_destination"
 
-##! /bin/bash
-#/home/basquiat/projects/web_server/writer_back/src/main/resources/static/dl.sh
-#./build.sh
-#./mfs.sh
+#build
+ng build --configuration production
+
+#move
+mv ./dist/webdeveloper/browser/* "cms_deployment"

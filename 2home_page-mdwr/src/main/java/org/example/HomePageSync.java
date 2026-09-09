@@ -63,25 +63,22 @@ public class HomePageSync {
     }
 
     public static void main(String[] args) throws Exception {
-        String rabbitHost = env("RABBIT_HOST", "localhost");
-        int rabbitPort = Integer.parseInt(env("RABBIT_PORT", "5672"));
-        String rabbitUser = env("RABBIT_USER", "guest");
-        String rabbitPass = env("RABBIT_PASS", "guest");
-
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.72:3306/phoenix_web"); 123.189
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.0.176:3306/phoenix_web");
-//        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://192.168.123.189:3306/phoenix_web");
-        String jdbcUrl = env("JDBC_URL", "jdbc:mariadb://localhost:3306/phoenix_web");
-
         Map<String, String> dotenv = loadDotEnv();
-        //PWUSER PWPSWD were so dumb names. also dumb remote.
+
         String dbUser = dotenv.get("db_user");
         String dbPass = dotenv.get("db_pswd");
-
-        if (dbUser == null || dbPass == null) {
+        String dbLoc  = dotenv.get("db_location");
+        if (dbUser == null || dbPass == null || dbLoc == null) {
             throw new IllegalStateException(
-                    "PWUSER and/or PWPWD not found in ~/.env — refusing to connect without credentials.");
+                    "db_user, db_pswd and/or db_location not found in /home/rembrandt/.env — refusing to connect without credentials.");
         }
+        String jdbcUrl = "jdbc:mariadb://" + dbLoc;
+
+        String rabbitHost = env("RABBIT_HOST", "localhost");
+        int rabbitPort    = Integer.parseInt(dotenv.get("rabbit_mq_port"));
+        String rabbitUser = dotenv.get("rabbit_user");
+        String rabbitPass = dotenv.get("rabbit_pswd");
+
 
         HikariDataSource ds = buildDataSource(jdbcUrl, dbUser, dbPass);
         Runtime.getRuntime().addShutdownHook(new Thread(ds::close));
@@ -179,7 +176,7 @@ public class HomePageSync {
      *  stripped. No dependency added for this; the file is tiny. */
     private static Map<String, String> loadDotEnv() throws Exception {
         Map<String, String> values = new HashMap<>();
-        Path path = Path.of(System.getProperty("user.home"), ".env");
+        Path path = Path.of("/home/rembrandt/.env");
         if (!Files.exists(path)) {
             System.err.println("[homepage-sync] no ~/.env found at " + path);
             return values;

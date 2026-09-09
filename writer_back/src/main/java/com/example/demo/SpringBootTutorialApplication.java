@@ -112,14 +112,10 @@ public class SpringBootTutorialApplication {
     }
 
 
-    private static final String WEB_ROOT = "/opt/homebrew/var/www";
+    @Value("${img_vid_root}")
+    private String WEB_ROOT;
 
-    // Public Access Prefix (Replace with your actual Public IP or Domain)
-    /**
-     * private locations opening the browser in this testing environment.
-     * change into 76.81.220.162 in production. that's where nginx will listen eh.
-     */
-    // The subdirectory is a variable with your "media" default
+    // todo: NEED MECHANISM OF WHERE FILES GO
     private String targetSubDir = "media";
 
     public static void main(String[] args) {
@@ -595,50 +591,24 @@ class SecurityConfig {
     }
 
     @Bean
-    public InMemoryUserDetailsManager userDetailsService() {
-        // Create your list of users here
-        UserDetails root = User.builder()
-                .username("root")
-                .password(passwordEncoder().encode("1415926535897932384626"))
-                .roles("ADMIN")
-                .build();
-        /** admin(ceo), admin0(victor, acmmdd). mustn't be same.
-         *  mustn't assign seniority, mustn't use name,
-         *  must state that they are senior*/
-        UserDetails ceo = User.builder()
-                .username("admin")
-                .password(passwordEncoder().encode("pstv168;")) //IT internal pswd.
-                .roles("EDITOR")
-                .build();
-        UserDetails acmmdd = User.builder() //assistant to ceo, manager of marketing development department (acmmdd)
-                .username("admin1")
-                .password(passwordEncoder().encode("pstv1688")) //conventional pswd.
-                .roles("EDITOR")
-                .build();
+    public InMemoryUserDetailsManager userDetailsService(
+            @Value("${pstv_m_usr}")  String mUsr,  @Value("${pstv_m_pswd}")  String mPswd,
+            @Value("${pstv_e1_usr}") String e1Usr, @Value("${pstv_e1_pswd}") String e1Pswd,
+            @Value("${pstv_e2_usr}") String e2Usr, @Value("${pstv_e2_pswd}") String e2Pswd,
+            @Value("${pstv_e3_usr}") String e3Usr, @Value("${pstv_e3_pswd}") String e3Pswd) {
 
-        UserDetails editor = User.builder()//mx
-                .username("editor")
-                .password(passwordEncoder().encode("edit"))
-                .roles("EDITOR")
-                .build();
-        UserDetails editor2 = User.builder()//zd
-                .username("di")
-                .password(passwordEncoder().encode("di"))
-                .roles("EDITOR")
-                .build();
-        UserDetails editor3 = User.builder()//yv
-                .username("yv")
-                .password(passwordEncoder().encode("yv"))
-                .roles("EDITOR")
-                .build();
-        UserDetails editor4 = User.builder()//mx
-                .username("mx")
-                .password(passwordEncoder().encode("mx"))
-                .roles("EDITOR")
-                .build();
+        PasswordEncoder enc = passwordEncoder();
 
+        UserDetails manager = User.builder()
+                .username(mUsr).password(enc.encode(mPswd)).roles("EDITOR").build();
+        UserDetails e1 = User.builder()
+                .username(e1Usr).password(enc.encode(e1Pswd)).roles("EDITOR").build();
+        UserDetails e2 = User.builder()
+                .username(e2Usr).password(enc.encode(e2Pswd)).roles("EDITOR").build();
+        UserDetails e3 = User.builder()
+                .username(e3Usr).password(enc.encode(e3Pswd)).roles("EDITOR").build();
 
-        return new InMemoryUserDetailsManager(root, ceo, acmmdd, editor, editor2, editor3, editor4);
+        return new InMemoryUserDetailsManager(manager, e1, e2, e3);
     }
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -666,9 +636,9 @@ class RabbitConfig {
     @Bean
     public EditorsDbEventPublisher editorsDbEventPublisher(
             @Value("${rabbit.host:localhost}") String host,
-            @Value("${rabbit.port:5672}") int port,
-            @Value("${rabbit.user:guest}") String user,
-            @Value("${rabbit.pass:guest}") String pass) {
+            @Value("${rabbit_mq_port}") int port,
+            @Value("${rabbit_user}") String user,
+            @Value("${rabbit_pswd}") String pass) {
         return new EditorsDbEventPublisher(host, port, user, pass);
     }
 }
