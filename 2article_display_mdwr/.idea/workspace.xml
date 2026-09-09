@@ -5,12 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="63173836-54a7-41de-9824-ae20820e3924" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/EditorsDisplaySync.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/EditorsDisplaySync.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../2home_page-mdwr/src/main/java/org/example/HomePageSync.java" beforeDir="false" afterPath="$PROJECT_DIR$/../2home_page-mdwr/src/main/java/org/example/HomePageSync.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/java/com/example/demo/ArticleDetailController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_back/src/main/java/com/example/demo/ArticleDetailController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_back/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/java/com/example/demo/SpringBootTutorialApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_back/src/main/java/com/example/demo/SpringBootTutorialApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_back/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,7 +37,7 @@
     "git-widget-placeholder": "main",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/yuelan/Desktop/web_server/2article_display_mdwr",
+    "last_opened_file_path": "/home/rembrandt/web_server/reader_back",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -87,7 +82,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.26199.169" />
+        <option value="bundled-jdk-30f59d01ecdd-34e2839f716b-intellij.indexing.shared.core-IU-262.9437.185" />
+        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-IU-262.9437.185" />
       </set>
     </attachedChunks>
   </component>
