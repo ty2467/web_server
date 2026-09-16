@@ -5,9 +5,13 @@ import { firstValueFrom } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class MediaUploadService {
   private readonly CHUNK_SIZE = 10 * 1024 * 1024;
-  private readonly baseURL = `http://${window.location.hostname}:9000/api`;
-  private readonly mediaHost = `http://${window.location.hostname}:8080/media`;
+  //9.16 *no longer calling the direct launcher's ip but the nginx that directs traffic.
+  //private readonly baseURL = `http://${window.location.hostname}:9000/api`;
+  //private readonly mediaHost = `http://${window.location.hostname}:8080/media`;
 
+  // AFTER
+  private readonly baseURL = '/api';
+  private readonly mediaHost = '/media';
   constructor(private http: HttpClient) {}
 
   uploadImage(file: File, onProgress?: (pct: number) => void): Promise<string> {

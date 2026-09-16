@@ -74,7 +74,10 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   readonly fontSizes: string[] = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
 
-  private readonly baseURL = `http://${window.location.hostname}:9000/api`;
+//9.16
+//   private readonly baseURL = `http://${window.location.hostname}:9000/api`;
+ 
+  private readonly baseURL = '/api';
   private readonly API_URL = `${this.baseURL}/ingest`;
 
   private route = inject(ActivatedRoute);

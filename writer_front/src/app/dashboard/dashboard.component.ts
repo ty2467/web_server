@@ -42,10 +42,14 @@ export class DashboardComponent implements OnInit {
 
 
   /** api routing. */
-  private readonly serverIP: string = window.location.hostname;
-  private readonly port: string = '9000'; //http://ip:9000
+  //9.16
+  //private readonly serverIP: string = window.location.hostname;
+  //private readonly port: string = '9000'; //http://ip:9000
+  //public readonly baseURL: string = `http://${this.serverIP}:${this.port}/api`;
 
-  public readonly baseURL: string = `http://${this.serverIP}:${this.port}/api`;
+  public readonly baseURL: string = '/api';
+
+
   private readonly API_URL = this.baseURL + "/articles/summary"; //api/articles/summary';
   private readonly API_URL2 = this.baseURL +"/delete"; ///api/delete';
   /** modify dashboard objects */
