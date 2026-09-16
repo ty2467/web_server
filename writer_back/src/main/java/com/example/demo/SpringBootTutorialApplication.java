@@ -200,10 +200,11 @@ public class SpringBootTutorialApplication {
 
     /* image handler */
     @PostMapping("/api/ingest/image-upload")
-    public ResponseEntity<?> handleImageUpload(@RequestParam("image") MultipartFile image  ) {
+    public ResponseEntity<?> handleImageUpload(@RequestParam("image") MultipartFile image ) {
         // needs file name.
         String fileName = image.getOriginalFilename();
         // Build for writing: /opt/homebrew/var/www/media/filename
+
         Path finalPath = Paths.get(WEB_ROOT, targetSubDir, fileName);
         if (fileName == null || fileName.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "No filename provided"));
