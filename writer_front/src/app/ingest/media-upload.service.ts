@@ -26,7 +26,8 @@ export class MediaUploadService {
           if (event.type === HttpEventType.UploadProgress && event.total) {
             onProgress?.(Math.round((100 * event.loaded) / event.total));
           } else if (event.type === HttpEventType.Response) {
-            resolve(`${this.mediaHost}/${file.name}`);
+            // The month folder is chosen server-side; take the path it reports.
+            resolve(`${this.mediaHost}/${event.body.path}`);
           }
         },
         error: reject
@@ -34,8 +35,10 @@ export class MediaUploadService {
     });
   }
 
+
   async uploadVideoChunked(file: File, onProgress?: (pct: number) => void): Promise<string> {
     const totalChunks = Math.ceil(file.size / this.CHUNK_SIZE);
+    let path = '';
     for (let i = 0; i < totalChunks; i++) {
       const chunk = file.slice(i * this.CHUNK_SIZE, Math.min((i + 1) * this.CHUNK_SIZE, file.size));
       const formData = new FormData();
@@ -44,10 +47,14 @@ export class MediaUploadService {
       formData.append('totalChunks', totalChunks.toString());
       formData.append('fileName', file.name);
 
-      await firstValueFrom(this.http.post(`${this.baseURL}/ingest/video-chunk`, formData));
+      // Only the final chunk's response carries the path — the rest are 202s.
+      const res: any = await firstValueFrom(
+        this.http.post(`${this.baseURL}/ingest/video-chunk`, formData));
+      if (res?.path) path = res.path;
+
       onProgress?.(Math.round(((i + 1) / totalChunks) * 100));
     }
-    return `${this.mediaHost}/${file.name}`;
+    return `${this.mediaHost}/${path}`;
   }
 
   // For a pasted <img src="https://external..."> — fetch and re-host through
@@ -56,6 +63,6 @@ export class MediaUploadService {
     const res: any = await firstValueFrom(
       this.http.post(`${this.baseURL}/ingest/image-from-url`, { url: remoteUrl })
     );
-    return `${this.mediaHost}/${res.fileName}`;
+    return `${this.mediaHost}/${res.path}`;
   }
 }

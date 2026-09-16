@@ -115,12 +115,31 @@ public class SpringBootTutorialApplication {
     @Value("${img_vid_root}")
     private String WEB_ROOT;
 
-    // todo: NEED MECHANISM OF WHERE FILES GO
-    private String targetSubDir = "media";
+
+//    private String targetSubDir = "media";
+    // Media is bucketed by month under the web root: ifengus/sep26/, ifengus/oct26/.
+    // Computed per write, never cached — a long-running process must not keep
+    // writing into last month's folder after the rollover.
+    private String currentSubDir() {
+        return java.time.LocalDate.now(java.time.ZoneId.of("America/Los_Angeles"))
+                .format(DateTimeFormatter.ofPattern("MMMyy", java.util.Locale.ENGLISH))
+                .toLowerCase();
+    }
 
     public static void main(String[] args) {
         SpringApplication.run(SpringBootTutorialApplication.class, args);
     }
+
+
+    private void deleteDirectoryRecursively(Path path) throws IOException {
+        Files.walk(path)
+                .sorted((a, b) -> b.compareTo(a))
+                .forEach(p -> {
+                    try { Files.delete(p); } catch (IOException e) { e.printStackTrace(); }
+                });
+    }
+
+
 
     /**
      * api for video writing.
@@ -159,9 +178,8 @@ public class SpringBootTutorialApplication {
             Files.write(chunkPath, chunk.getBytes());
 
             if (chunkIndex == totalChunks - 1) {
-                // ASSEMBLE: Use the original fileName provided by Angular
-                assembleFile(uploadDir, fileName, totalChunks);
-                return ResponseEntity.ok(Map.of("message", "Assembly complete"));
+                String path = assembleFile(uploadDir, fileName, totalChunks);
+                return ResponseEntity.ok(Map.of("message", "Assembly complete", "path", path));
             }
             //this is while not the last chunk.
             return ResponseEntity.accepted().body(Map.of("chunkIndex", chunkIndex));
@@ -171,11 +189,10 @@ public class SpringBootTutorialApplication {
     }
 
     /** Builds and writes @: /opt/homebrew/var/www + media + filename */
-    private void assembleFile(Path dir, String fileName, int totalChunks) throws IOException {
-
-        Path finalPath = Paths.get(WEB_ROOT, targetSubDir, fileName);
-
-        // This creates the 'media' directory inside 'www' if it doesn't exist yet
+    /** Writes WEB_ROOT/<month>/<fileName>; returns "<month>/<fileName>" for the client. */
+    private String assembleFile(Path dir, String fileName, int totalChunks) throws IOException {
+        String subDir = currentSubDir();
+        Path finalPath = Paths.get(WEB_ROOT, subDir, fileName);
         Files.createDirectories(finalPath.getParent());
 
         try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(finalPath))) {
@@ -186,39 +203,29 @@ public class SpringBootTutorialApplication {
             }
         }
 
-        // Cleanup the temporary local chunk folder
         deleteDirectoryRecursively(dir);
+        return subDir + "/" + fileName;
     }
 
-    private void deleteDirectoryRecursively(Path path) throws IOException {
-        Files.walk(path)
-                .sorted((a, b) -> b.compareTo(a))
-                .forEach(p -> {
-                    try { Files.delete(p); } catch (IOException e) { e.printStackTrace(); }
-                });
-    }
 
     /* image handler */
     @PostMapping("/api/ingest/image-upload")
-    public ResponseEntity<?> handleImageUpload(@RequestParam("image") MultipartFile image ) {
-        // needs file name.
+    public ResponseEntity<?> handleImageUpload(@RequestParam("image") MultipartFile image) {
         String fileName = image.getOriginalFilename();
-        // Build for writing: /opt/homebrew/var/www/media/filename
-
-        Path finalPath = Paths.get(WEB_ROOT, targetSubDir, fileName);
         if (fileName == null || fileName.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "No filename provided"));
         }
+
+        String subDir = currentSubDir();
+        Path finalPath = Paths.get(WEB_ROOT, subDir, fileName);
+
         try {
-            // Ensure the directory exists
-            if (!Files.exists(finalPath.getParent())) {
-                Files.createDirectories(finalPath.getParent());
-            }
-            // Direct write to the Nginx root
-            Files.copy(image.getInputStream(), finalPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            return ResponseEntity.ok(Map.of(
-                    "message", "Image processed via Try-Catch synchronization"
-            ));
+            Files.createDirectories(finalPath.getParent());
+            Files.copy(image.getInputStream(), finalPath,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            // The month folder is a server-side decision, so the client is
+            // told where the file landed rather than guessing.
+            return ResponseEntity.ok(Map.of("path", subDir + "/" + fileName));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
@@ -433,7 +440,9 @@ public class SpringBootTutorialApplication {
         }
     }
 
-
+    /*
+    * handling paste.
+    * */
     @PostMapping("/api/ingest/image-from-url")
     public ResponseEntity<?> handleImageFromUrl(@RequestBody Map<String, String> body) {
         String src = body == null ? null : body.get("url");
@@ -469,14 +478,15 @@ public class SpringBootTutorialApplication {
             if (ext.isEmpty()) ext = "jpg";
             String fileName = "pasted-" + System.currentTimeMillis() + "." + ext;
 
-            Path finalPath = Paths.get(WEB_ROOT, targetSubDir, fileName);
+            String subDir = currentSubDir();
+            Path finalPath = Paths.get(WEB_ROOT, subDir, fileName);
             Files.createDirectories(finalPath.getParent());
 
             try (InputStream in = res.body()) {
                 Files.copy(in, finalPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
 
-            return ResponseEntity.ok(Map.of("fileName", fileName));
+            return ResponseEntity.ok(Map.of("path", subDir + "/" + fileName));
 
         } catch (Exception e) {
             e.printStackTrace();

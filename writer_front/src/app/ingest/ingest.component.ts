@@ -76,7 +76,7 @@ export class IngestComponent implements OnInit, OnDestroy {
 
 //9.16
 //   private readonly baseURL = `http://${window.location.hostname}:9000/api`;
- 
+
   private readonly baseURL = '/api';
   private readonly API_URL = `${this.baseURL}/ingest`;
 
@@ -89,7 +89,7 @@ export class IngestComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    // Only scalar, fixed-shape fields live in Reactive Forms. content_blocks
+    // Only scalar, fixed-shape fields live in Reactive F ms. content_blocks
     // is dynamic and index-sensitive in a way FormArray actively fights —
     // it stays a plain array, assembled into the payload at submit time.
     this.metaForm = new FormGroup({

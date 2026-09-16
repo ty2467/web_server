@@ -1,3 +1,8 @@
+# media location: 
+  srv/media. anything they put gets in there
+  > rewrite all media file locations as part of srv/media 
+  > configure the write path in media upload for this.
+
 # Frontend, webpage.
 
 ## File usages:
