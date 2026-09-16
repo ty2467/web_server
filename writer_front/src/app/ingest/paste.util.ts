@@ -12,6 +12,44 @@ export type BlockSeed =
 
 const IMAGE_EXT_RE = /\.(jpe?g|gif|png|webp|svg|avif)(\?.*)?$/i;
 
+
+
+/**
+ * HTML string -> block seeds. The clipboard entry point below is a thin
+ * wrapper around this; an archive importer or any other non-browser caller
+ * uses this one directly.
+ *
+ * baseUrl resolves relative <img src>. Clipboard HTML arrives from a browser
+ * with absolute URLs, but scraped markup usually carries paths like
+ * /uploads/foo.jpg, so it's required there.
+ *
+ * detectCaptions off means a short line after an image stays its own
+ * paragraph. In the editor a wrong caption is a one-click fix because
+ * someone is looking at it; in a bulk import nobody is, and a false positive
+ * silently swallows a body paragraph.
+ */
+export function parseHtmlToBlockSeeds(
+  html: string,
+  extensions: Extensions,
+  baseUrl?: string,
+  detectCaptions = true
+): BlockSeed[] {
+  const seeds: BlockSeed[] = [];
+  if (!html) return seeds;
+
+  walk(unwrapSingleChildWrappers(parseHtmlFragment(html)), seeds, extensions, detectCaptions);
+
+  if (baseUrl) {
+    for (const seed of seeds) {
+      if (seed.kind === 'image' && seed.remoteUrl) {
+        seed.remoteUrl = new URL(seed.remoteUrl, baseUrl).href;
+      }
+    }
+  }
+  return seeds;
+}
+
+
 /**
  * Turns a ClipboardEvent into an ordered list of block seeds. Pure function:
  * no DOM mutation outside a detached fragment, no Angular, no network calls,
@@ -40,13 +78,9 @@ export function parseClipboardToBlockSeeds(
   const html = dt.getData('text/html');
   const text = dt.getData('text/plain');
   if (!html && !text) return seeds;
+	
+  return parseHtmlToBlockSeeds(html || textLinesToHtml(text), extensions);
 
-  const topLevelNodes = html
-    ? unwrapSingleChildWrappers(parseHtmlFragment(html))
-    : unwrapSingleChildWrappers(parseHtmlFragment(textLinesToHtml(text)));
-
-  walk(topLevelNodes, seeds, extensions);
-  return seeds;
 }
 
 function parseHtmlFragment(html: string): DocumentFragment {
@@ -124,7 +158,7 @@ function captionLikeText(node: ChildNode | undefined): string | null {
   return text && text.length <= MAX_CAPTION_LENGTH ? text : null;
 }
 
-function walk(nodes: ChildNode[], seeds: BlockSeed[], extensions: Extensions) {
+function walk(nodes: ChildNode[], seeds: BlockSeed[], extensions: Extensions, detectCaptions = true) {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) continue;
@@ -139,18 +173,18 @@ function walk(nodes: ChildNode[], seeds: BlockSeed[], extensions: Extensions) {
       if (src) {
         // Structural caption (shares a container with the image) wins —
         // it's actually tied to this exact image, not just nearby.
-        let caption = el.tagName !== 'IMG' ? extractInlineCaption(el, img) : null;
+	let caption = detectCaptions && el.tagName !== 'IMG'
+         ? extractInlineCaption(el, img)
+         : null;
 
-        // Otherwise, fall back to "short text right after a bare <img>".
         let consumedNext = false;
-        if (!caption) {
+        if (detectCaptions && !caption) {
           const next = captionLikeText(nodes[i + 1]);
           if (next) {
             caption = next;
             consumedNext = true;
           }
         }
-
         seeds.push({ kind: 'image', sourceFile: null, remoteUrl: src, caption });
         if (consumedNext) i++; // don't also emit that node as its own paragraph
         continue;

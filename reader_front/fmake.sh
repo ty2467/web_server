@@ -8,4 +8,4 @@ clear_destination="${web_deployment}/dl.sh"
 npx ng build --configuration production
 
 #move
-mv ./dist/n001-star/browser/* "web_deployment"
+mv ./dist/n001-star/browser/* "$web_deployment"
