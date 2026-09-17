@@ -148,6 +148,9 @@
   }
 
   /* Expand Matrix */
+  /*todo: the expansion will have a 4th being wrapped around? that's
+  when you force a 4th one into being pushed up. can you cap it
+  when its <1100px. */
   .matrix-base-container .secondary-grid {
     grid-template-columns: repeat(3, 1fr);
   }

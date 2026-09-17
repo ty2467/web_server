@@ -95,6 +95,20 @@
       </div>
     </section>
   </section>
+  <!-- ===== 栏目, first congregation — then 三版 breaks the run ====== -->
+  <section class="matrix-base-container" *ngFor="let row of columnsBeforeTertiary">
+    <div class="secondary-grid">
+      <div class="secondary-column" *ngFor="let col of row">
+        <div class="column-header">{{ col.category }}</div>
+        <div class="secondary-card matrix-item"
+             *ngFor="let art of col.articles"
+             [routerLink]="['/article', art.slug]">
+          <img *ngIf="art.image" [src]="art.image" class="secondary-image">
+          <h3>{{ art.title }}</h3>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- ============ 三版 (tertiary) — one block, 中心 + 侧 only ============= -->
   <section class="top-news half-front-unit"
@@ -127,8 +141,8 @@
     </div>
   </section>
 
-  <!-- ===== 栏目 (column) — three category columns per row, repeating ====== -->
-  <section class="matrix-base-container" *ngFor="let row of matrixRows">
+  <!-- ===== 栏目, remaining congregations ====== -->
+  <section class="matrix-base-container" *ngFor="let row of columnsAfterTertiary">
     <div class="secondary-grid">
       <div class="secondary-column" *ngFor="let col of row">
         <div class="column-header">{{ col.category }}</div>

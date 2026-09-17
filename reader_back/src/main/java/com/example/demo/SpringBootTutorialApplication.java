@@ -125,6 +125,11 @@ class NewsController {
             "FIELD(category, '美洲头条', '工商新闻', 'CES 国际消费电子展', '天天话题')";
 
 
+    private static final String FRONT_OF =
+            "CASE WHEN FIND_IN_SET('main', section_zone) THEN 'main' " +
+                    "     WHEN FIND_IN_SET('sub_main', section_zone) THEN 'sub_main' " +
+                    "     WHEN FIND_IN_SET('tertiary', section_zone) THEN 'tertiary' END";
+
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {
         PageDataDTO data = new PageDataDTO();
@@ -133,34 +138,39 @@ class NewsController {
                 "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
         data.bannerText = "Latest Updates from the Newsroom";
 
-        // 栏目 IS CAPPED HERE, AND CATEGORY ORDER IS A DECISION, NOT A SIDE EFFECT.
-        //
-        // Every front-placed row ships. 栏目 ships its four newest per category,
-        // ranked in a window partitioned over the 栏目 rows only, so a front row
-        // that happens to share a category doesn't consume one of the four.
-        //
-        // The old "fronts first" sort existed to protect them from LIMIT 100.
-        // With 栏目 capped, the result set is bounded by construction (fronts +
-        // 4 x categories), so there is no limit to protect anyone from, and the
-        // ordering is free to do the one job that still matters: the sequence
-        // the frontend reads categories in, which is the sequence the
-        // congregations render in. FIELD() returns 0 for an unlisted category,
-        // which would sort it to the very front — the "= 0" term pushes those
-        // to the back instead.
+        // 侧 AND 底 ARE CAPPED PER FRONT, PER SLOT.
+//
+// rn_slot ranks within (front, 排列), so 主板's sides and 次板's sides are
+// separate races and neither crowds the other. Three each: the 底 grid is
+// three columns wide and the side rail holds three before it outruns the
+// lead image beside it.
+//
+// 中心 is deliberately uncapped — on 主板 it is the rotisserie, whose
+// plurality is the feature, and on the other two a second 中心 is an
+// editorial mistake the frontend already warns about. Capping it would
+// hide that.
+//
+// A row on a front AND in 栏目 can pass on its 栏目 rank alone, so an
+// over-cap side still reaches the page and the frontend still places it in
+// both. Rare, and dropping a 栏目 article to enforce a front cap is worse.
         String sql =
                 "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url " +
                         "FROM ( " +
                         "  SELECT h.*, " +
+                        "         " + FRONT_OF + " AS front, " +
                         "         (FIND_IN_SET('column', section_zone) > 0) AS is_column, " +
                         "         ROW_NUMBER() OVER ( " +
+                        "           PARTITION BY " + FRONT_OF + ", intra_section_zone " +
+                        "           ORDER BY date_time DESC) AS rn_slot, " +
+                        "         ROW_NUMBER() OVER ( " +
                         "           PARTITION BY category, (FIND_IN_SET('column', section_zone) > 0) " +
-                        "           ORDER BY date_time DESC) AS rn " +
+                        "           ORDER BY date_time DESC) AS rn_col " +
                         "  FROM home_page h " +
                         "  WHERE section_zone IS NOT NULL AND section_zone <> '' " +
                         ") ranked " +
-                        "WHERE " + ON_ANY_FRONT + " OR rn <= 4 " +
+                        "WHERE (front IS NOT NULL AND (intra_section_zone = 0 OR rn_slot <= 3)) " +
+                        "   OR (is_column AND rn_col <= 4) " +
                         "ORDER BY " + CATEGORY_RANK + " = 0, " + CATEGORY_RANK + ", date_time DESC";
-
         data.articlePool = queryArticles(sql);
 
         return data;
