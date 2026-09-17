@@ -120,6 +120,11 @@ class NewsController {
     private static final String SELECT_COLS =
             "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url ";
 
+
+    private static final String CATEGORY_RANK =
+            "FIELD(category, '美洲头条', '工商新闻', 'CES 国际消费电子展', '天天话题')";
+
+
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {
         PageDataDTO data = new PageDataDTO();
@@ -128,36 +133,39 @@ class NewsController {
                 "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
         data.bannerText = "Latest Updates from the Newsroom";
 
-        // ORDER NO LONGER CARRIES MEANING.
+        // 栏目 IS CAPPED HERE, AND CATEGORY ORDER IS A DECISION, NOT A SIDE EFFECT.
         //
-        // The old query encoded a linear-ingestion contract: zone order via
-        // FIELD(), 中心 before 侧/底, rows of a unit kept contiguous, because
-        // the frontend attached each side to whichever unit it had pushed
-        // last. That frontend is gone — the ingester now reads section_zone
-        // and intra_section_zone off each row and drops it in the matching
-        // bucket, so any permutation of this result set produces the same
-        // page.
+        // Every front-placed row ships. 栏目 ships its four newest per category,
+        // ranked in a window partitioned over the 栏目 rows only, so a front row
+        // that happens to share a category doesn't consume one of the four.
         //
-        // The one thing order still does is decide who survives LIMIT 100,
-        // so fronts sort ahead of 栏目-only rows: a 主板 article from last
-        // month must not fall off the bottom behind a hundred fresh 栏目
-        // pieces. Within each group, newest first.
-        //
-        // Rows with no placement at all are excluded rather than shipped and
-        // dropped client-side. '' is a legal (empty) SET value, hence both
-        // tests.
-        String sql = SELECT_COLS +
-                "FROM home_page " +
-                "WHERE section_zone IS NOT NULL AND section_zone <> '' " +
-                "ORDER BY " +
-                "  CASE WHEN " + ON_ANY_FRONT + " THEN 0 ELSE 1 END, " +
-                "  date_time DESC " +
-                "LIMIT 100";
+        // The old "fronts first" sort existed to protect them from LIMIT 100.
+        // With 栏目 capped, the result set is bounded by construction (fronts +
+        // 4 x categories), so there is no limit to protect anyone from, and the
+        // ordering is free to do the one job that still matters: the sequence
+        // the frontend reads categories in, which is the sequence the
+        // congregations render in. FIELD() returns 0 for an unlisted category,
+        // which would sort it to the very front — the "= 0" term pushes those
+        // to the back instead.
+        String sql =
+                "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url " +
+                        "FROM ( " +
+                        "  SELECT h.*, " +
+                        "         (FIND_IN_SET('column', section_zone) > 0) AS is_column, " +
+                        "         ROW_NUMBER() OVER ( " +
+                        "           PARTITION BY category, (FIND_IN_SET('column', section_zone) > 0) " +
+                        "           ORDER BY date_time DESC) AS rn " +
+                        "  FROM home_page h " +
+                        "  WHERE section_zone IS NOT NULL AND section_zone <> '' " +
+                        ") ranked " +
+                        "WHERE " + ON_ANY_FRONT + " OR rn <= 4 " +
+                        "ORDER BY " + CATEGORY_RANK + " = 0, " + CATEGORY_RANK + ", date_time DESC";
 
         data.articlePool = queryArticles(sql);
 
         return data;
     }
+
 
     @GetMapping("/category/{name}")
     public PageDataDTO getCategoryPageData(@PathVariable String name) {

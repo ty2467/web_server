@@ -55,9 +55,15 @@ export class HomeComponent implements OnInit, OnDestroy {
   // =========================================================================
   layout: Record<FrontKey, FrontBuckets> = emptyLayout();
 
-  // 栏目 is three parallel category columns, that shape repeating down the
-  // page until every column has been placed. Rows of three.
+  // 栏目 is parallel category columns, that shape repeating down the page
+  // until every column has been placed. The API caps each column at four
+  // articles and decides category order; this only groups them into rows.
   matrixRows: MatrixColumn[][] = [];
+
+  // Four across, not three: a trailing row of one or two columns leaves an
+  // obvious hole on the right, and four fits the current category set in a
+  // single row.
+  private readonly COLUMNS_PER_ROW = 4;
 
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
@@ -73,6 +79,24 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   get topLeadArticle(): Article | null {
     return this.rotisseriePool[this.currentLeadIndex] ?? null;
+  }
+
+  // =========================================================================
+  // CONGREGATIONS
+  //
+  // 栏目 renders in two runs with 三版 between them, rather than as one
+  // continuous stack: a long uniform column reads as a dumped table, and
+  // the break is what makes the page look edited. Both getters slice the
+  // same matrixRows — the split is a rendering decision, and the schema
+  // carries no notion of which congregation an article belongs to.
+  // =========================================================================
+
+  get columnsBeforeTertiary(): MatrixColumn[][] {
+    return this.matrixRows.slice(0, 1);
+  }
+
+  get columnsAfterTertiary(): MatrixColumn[][] {
+    return this.matrixRows.slice(1);
   }
 
   ngOnInit() {
@@ -99,6 +123,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   // no bucket's contents affecting another's, no state carried between
   // iterations. Re-running it on the same input in any order produces the
   // same layout.
+  //
+  // The one thing arrival order still decides is the order the 栏目 columns
+  // appear in, which the API sets deliberately.
   // ===========================================================================
 
   private ingestAndRoute(rawArticles: Article[]) {
@@ -144,8 +171,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     const columns: MatrixColumn[] = Array.from(byCategory.entries())
       .map(([category, articles]) => ({ category, articles }));
 
-    for (let i = 0; i < columns.length; i += 3) {
-      this.matrixRows.push(columns.slice(i, i + 3));
+    for (let i = 0; i < columns.length; i += this.COLUMNS_PER_ROW) {
+      this.matrixRows.push(columns.slice(i, i + this.COLUMNS_PER_ROW));
     }
   }
 
