@@ -624,15 +624,18 @@ class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // 1. Allow CORS pre-flight requests
                 .cors(withDefaults())
+                // 2. Disable CSRF for your ingest APIs (or configure for tokens)
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // WAS: .requestMatchers("/favicon.ico", "/*.js", "/*.css").permitAll()
-                        .requestMatchers("/", "/index.html", "/favicon.ico", "/*.js", "/*.css").permitAll()
+                        // 3. Allow anyone to see the login/static assets if needed
+                        .requestMatchers("/favicon.ico", "/*.js", "/*.css").permitAll()
+                        // 4. Everything else requires authentication
                         .anyRequest().authenticated()
                 )
+                // 5. Use the default form login
                 .formLogin(withDefaults());
-
         return http.build();
     }
 }
