@@ -72,7 +72,7 @@ public class HomePageSync {
             throw new IllegalStateException(
                     "db_user, db_pswd and/or db_location not found in /home/rembrandt/.env — refusing to connect without credentials.");
         }
-        String jdbcUrl = "jdbc:mariadb://" + dbLoc;
+        String jdbcUrl = "jdbc:mariadb://" + dbLoc + "/phoenix_web";
 
         String rabbitHost = env("RABBIT_HOST", "localhost");
         int rabbitPort    = Integer.parseInt(dotenv.get("rabbit_mq_port"));

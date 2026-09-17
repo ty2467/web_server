@@ -7,11 +7,11 @@
 //      parser and lands in exactly the shape the ingest form produces. The
 //      destination is that form's payload — nothing new is invented here.
 //
-//   2. Media resolution. Each URL the parser found is matched to the file
-//      the archiver already wrote under the media root, and that file's
-//      public URL is written into the block. Nothing is uploaded or copied:
-//      the file is already where nginx serves it. Done inline, while the
-//      block is in hand, so the block array is built once and never reopened.
+//   2. Media relocation. Each URL the parser found is resolved to the file
+//      the archiver already wrote, uploaded through the same endpoint the
+//      editor uses, and the returned URL written back into the block. Done
+//      inline, while the block is in hand, so the block array is built once
+//      and never reopened.
 //
 //   npx tsx src/main.ts --aid 41137 --dry
 //   npx tsx src/main.ts --range 40000-42000
@@ -23,6 +23,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import { BackendClient } from './api.js';
 import type { ArticlePayload, BlockDTO } from './api.js';
+import { MediaUploader } from './media-upload.js';
 import { CATEGORY_MAP } from './category-map.js';
 
 const { parseHtmlToBlockSeeds } = await import(
@@ -49,8 +50,6 @@ const DETECT_CAPTIONS = false;
 
 const PAGES_DIR = process.env.PAGES_DIR ?? '/var/archive/pages/a';
 const MEDIA_ROOT = process.env.MEDIA_ROOT ?? '/srv/media/ifengus';
-// Stored in media_url. Must match the editor's MediaUploadService.mediaHost.
-const MEDIA_HOST = process.env.MEDIA_HOST ?? '/media';
 const ORIGIN = 'https://ifengus.com';
 
 // ---------------------------------------------------------------------------
@@ -138,16 +137,13 @@ function localPathFor(remoteUrl: string): string | null {
   return existsSync(p) ? p : null;
 }
 
-// nginx serves MEDIA_ROOT at MEDIA_HOST (alias /media/ -> /srv/media/ifengus/),
-// so a file's URL is its path under MEDIA_ROOT. nginx percent-decodes the
-// request before it touches disk, and archived names keep their encoding
-// literally, so '%' is escaped to survive that decode.
-function publicUrlFor(local: string): string {
-  const rel = path.relative(MEDIA_ROOT, local)
-    .split(path.sep)
-    .map(s => s.replace(/%/g, '%25'))
-    .join('/');
-  return `${MEDIA_HOST}/${rel}`;
+const MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+};
+
+function mimeFor(file: string): string {
+  return MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
 }
 
 // ---------------------------------------------------------------------------
@@ -172,19 +168,20 @@ function problemsWith(a: Scraped, category: string | undefined): string[] {
 // ---------------------------------------------------------------------------
 
 class Importer {
-  // Thumbnails recur across the recommendation blocks, and the same image is
-  // shared between articles; each remote URL is checked on disk once.
-  private resolved = new Map<string, string>();
+  // One upload per distinct file. Thumbnails recur across the recommendation
+  // blocks, and the same image is shared between articles.
+  private uploaded = new Map<string, string>();
   private missing = new Set<string>();
 
   constructor(
     private api: BackendClient,
+    private media: MediaUploader,
     private dry: boolean
   ) {}
 
-  /** Remote URL -> the archived file's public URL. null when the archive has no such file. */
-  private relocate(remoteUrl: string): string | null {
-    const cached = this.resolved.get(remoteUrl);
+  /** Resolve, upload, return our URL. null when the archive has no such file. */
+  private async relocate(remoteUrl: string, aid: string, isVideo: boolean): Promise<string | null> {
+    const cached = this.uploaded.get(remoteUrl);
     if (cached) return cached;
     if (this.missing.has(remoteUrl)) return null;
 
@@ -194,8 +191,21 @@ class Importer {
       return null;
     }
 
-    const url = publicUrlFor(local);
-    this.resolved.set(remoteUrl, url);
+    if (this.dry) return `[would upload] ${path.basename(local)}`;
+
+    const bytes = readFileSync(local);
+    let url: string;
+
+    // The handlers write whatever name they're given into one month folder,
+    // and the image handler replaces an existing file. Source basenames repeat
+    // across articles (videos are all 0.mp4), so the aid keeps them distinct.
+    if (isVideo) {
+      url = await this.media.uploadVideoChunked(bytes, `${aid}-${path.basename(local)}`);
+    } else {
+      url = await this.media.uploadImage(bytes, `${aid}-${path.basename(local)}`, mimeFor(local));
+    }
+
+    this.uploaded.set(remoteUrl, url);
     return url;
   }
 
@@ -223,7 +233,7 @@ class Importer {
 
       if (!seed.remoteUrl) continue;
 
-      const url = this.relocate(seed.remoteUrl);
+      const url = await this.relocate(seed.remoteUrl, a.aid, false);
       if (!url) {
         console.error(`    skip image, not archived: ${seed.remoteUrl}`);
         continue;
@@ -239,7 +249,7 @@ class Importer {
     // Videos are pulled out by regex rather than by the parser, which only
     // knows <img>, so they append after the body's blocks.
     for (const src of a.videoUrls) {
-      const url = this.relocate(src);
+      const url = await this.relocate(src, a.aid, true);
       if (!url) {
         console.error(`    skip video, not archived: ${src}`);
         continue;
@@ -275,7 +285,7 @@ class Importer {
     }
 
     let lead: string | null = null;
-    if (a.leadImageUrl) lead = this.relocate(a.leadImageUrl);
+    if (a.leadImageUrl) lead = await this.relocate(a.leadImageUrl, a.aid, false);
 
     const payload: ArticlePayload = {
       id: null,
@@ -341,7 +351,9 @@ async function main() {
   const cfg = {
     // Spring binds 127.0.0.1 only; the importer runs on the same host.
     apiBase: process.env.API_BASE ?? 'http://127.0.0.1:9000/api',
-    mediaHost: MEDIA_HOST,
+    // Stored in media_url, never fetched here. Must match the editor's
+    // MediaUploadService.mediaHost, which now goes through nginx.
+    mediaHost: process.env.MEDIA_HOST ?? '/media',
   };
 
   const api = new BackendClient({
@@ -359,10 +371,11 @@ async function main() {
     await api.login();
     console.log(`authenticated as ${process.env.API_USER}`);
   } else {
-    console.log('DRY RUN — parsing and resolving only, nothing inserted');
+    console.log('DRY RUN — parsing and resolving only, nothing uploaded or inserted');
   }
 
-  const imp = new Importer(api, dry);
+  const media = new MediaUploader({ ...cfg, cookie: api.cookieHeader() });
+  const imp = new Importer(api, media, dry);
 
   let ok = 0, skipped = 0, failed = 0;
   console.log(`${aids.length} articles from ${PAGES_DIR}\n`);
