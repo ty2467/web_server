@@ -20,9 +20,9 @@ export class App implements OnInit {
     '工商新闻',
     '天天话题',
     'CES消费电子展',
-    '',
-    '',
-    '',
+    '出海专区',
+    '美洲台探访',
+    '商务合作',
   ];
 
   stockData: any[] = [];
