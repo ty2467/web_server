@@ -9,22 +9,47 @@ import { forkJoin, map } from 'rxjs';
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   templateUrl: './app.html',
-  styleUrls: ['./app.css']
+  styleUrls: ['./app.css'],
 })
 export class App implements OnInit {
   private http = inject(HttpClient);
 
   menuItems: string[] = [
-    '美洲头条', '美国观察', '工商新闻', '天天话题', '非常美洲', '精英访谈'
+    '美洲头条',
+    '美国观察',
+    '工商新闻',
+    '天天话题',
+    'CES 国际消费电子展',
+    '悠游全攻略',
+    '环球星动',
+    '美食那些事',
+    '教育资讯',
   ];
 
   stockData: any[] = [];
   private symbols = [
-    '^GSPC', '^IXIC', '^DJI',
-    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA',
-    'META', 'TSLA', 'BRK.B', 'LLY', 'AVGO',
-    'V', 'JPM', 'NVO', 'UNH', 'WMT',
-    'MA', 'JNJ', 'PG', 'HD'
+    '^GSPC',
+    '^IXIC',
+    '^DJI',
+    'AAPL',
+    'MSFT',
+    'GOOGL',
+    'AMZN',
+    'NVDA',
+    'META',
+    'TSLA',
+    'BRK.B',
+    'LLY',
+    'AVGO',
+    'V',
+    'JPM',
+    'NVO',
+    'UNH',
+    'WMT',
+    'MA',
+    'JNJ',
+    'PG',
+    'HD',
   ];
 
   private apiKey = 'd7np7khr01qm36379nsgd7np7khr01qm36379nt0';
@@ -34,20 +59,20 @@ export class App implements OnInit {
   }
 
   fetchStockData() {
-    const requests = this.symbols.map(symbol =>
+    const requests = this.symbols.map((symbol) =>
       this.http.get(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${this.apiKey}`).pipe(
         map((res: any) => ({
           symbol,
           price: res.c,
           change: res.d,
-          percent: res.dp
-        }))
-      )
+          percent: res.dp,
+        })),
+      ),
     );
 
     forkJoin(requests).subscribe({
-      next: (data) => this.stockData = data,
-      error: (err) => console.error('Stock fetch failed', err)
+      next: (data) => (this.stockData = data),
+      error: (err) => console.error('Stock fetch failed', err),
     });
   }
 }

@@ -167,7 +167,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         const category = art.category || 'General';
         if (!byCategory.has(category)) byCategory.set(category, []);
         const col = byCategory.get(category)!;
-        if (col.length < COLUMN_CAP) col.push(art);
+        //todo: column cap was not being readable by this.
+        if (col.length < 4) col.push(art);
       }
     }
 
