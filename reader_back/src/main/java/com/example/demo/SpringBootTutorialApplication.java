@@ -130,6 +130,8 @@ class NewsController {
                     "     WHEN FIND_IN_SET('sub_main', section_zone) THEN 'sub_main' " +
                     "     WHEN FIND_IN_SET('tertiary', section_zone) THEN 'tertiary' END";
 
+    private static final int ROTISSERIE_CAP = 5;
+
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {
         PageDataDTO data = new PageDataDTO();
@@ -168,7 +170,10 @@ class NewsController {
                         "  FROM home_page h " +
                         "  WHERE section_zone IS NOT NULL AND section_zone <> '' " +
                         ") ranked " +
-                        "WHERE (front IS NOT NULL AND (intra_section_zone = 0 OR rn_slot <= 3)) " +
+                        "WHERE (front = 'main'     AND intra_section_zone = 0 AND rn_slot <= " + ROTISSERIE_CAP + ") " +
+                        "   OR (front = 'sub_main' AND intra_section_zone = 0 AND rn_slot <= 1) " +
+                        "   OR (front = 'tertiary' AND intra_section_zone = 0 AND rn_slot <= 1) " +
+                        "   OR (front IS NOT NULL  AND intra_section_zone > 0 AND rn_slot <= 3) " +
                         "   OR (is_column AND rn_col <= 4) " +
                         "ORDER BY " + CATEGORY_RANK + " = 0, " + CATEGORY_RANK + ", date_time DESC";
         data.articlePool = queryArticles(sql);
