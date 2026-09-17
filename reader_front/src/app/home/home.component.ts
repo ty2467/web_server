@@ -64,6 +64,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   // obvious hole on the right, and four fits the current category set in a
   // single row.
   private readonly COLUMNS_PER_ROW = 4;
+  private readonly COLUMN_CAP = 4;
 
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
@@ -161,10 +162,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       // --- 栏目 -------------------------------------------------------------
       // Independent of any front placement above. 栏目 has no 排列; the
       // column an article lands in is decided by its category.
+      //HAPPY CAPPING
       if (zones.has('column')) {
         const category = art.category || 'General';
         if (!byCategory.has(category)) byCategory.set(category, []);
-        byCategory.get(category)!.push(art);
+        const col = byCategory.get(category)!;
+        if (col.length < COLUMN_CAP) col.push(art);
       }
     }
 
