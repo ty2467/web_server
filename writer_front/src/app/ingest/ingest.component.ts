@@ -24,7 +24,7 @@ import { parseClipboardToBlockSeeds } from './paste.util';
 import { MediaUploadService } from './media-upload.service';
 
 /** 位置 — the three mutually-exclusive fronts. 栏目 is not one of these. */
-export type ZoneFront = 'main' | 'sub_main' | 'tertiary';
+export type ZoneFront = 'super_main' | 'main' | 'sub_main' | 'tertiary';
 
 /**
  * section_zone used to be one required <select>. It is now a MariaDB SET,
@@ -80,9 +80,12 @@ export class IngestComponent implements OnInit, OnDestroy {
    * 固定栏位 — category dictates placement, decided at ingest, not at read time.
    * The writer picks a category; the placement follows and is not editable.
    */
-  private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
-    '美洲头条': { front: 'main', intra: 0 }   // 主板中心
-  };
+    private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
+      '美洲头条':   { front: 'main',       intra: 0 },  // 主板中心
+      '美洲台探访': { front: 'super_main', intra: 0 },  // 高光专区中心
+      '出海专区':   { front: 'super_main', intra: 1 },  // 高光专区侧
+      '商务合作':   { front: 'super_main', intra: 2 }   // 高光专区底
+    };
 
   get lockedZone(): { front: ZoneFront; intra: number } | null {
     return this.categoryZoneLock[this.metaForm?.get('category')?.value] ?? null;
@@ -182,9 +185,10 @@ export class IngestComponent implements OnInit, OnDestroy {
   // ===========================================================================
 
   readonly frontOptions: { value: ZoneFront; label: string }[] = [
-    { value: 'main',     label: '主板' },
-    { value: 'sub_main', label: '次板' },
-    { value: 'tertiary', label: '三版' }
+    { value: 'super_main', label: '高光专区' },
+    { value: 'main',       label: '主板' },
+    { value: 'sub_main',   label: '次板' },
+    { value: 'tertiary',   label: '三版' }
   ];
 
   // Fixed numeric encoding, independent of which subset is offered:
@@ -198,7 +202,7 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   get intraSectionZoneOptions(): { value: number; label: string }[] {
     const front = this.metaForm?.get('front')?.value;
-    if (front === 'main' || front === 'sub_main') return this.intraFull;
+    if (front === 'super_main' || front === 'main' || front === 'sub_main') return this.intraFull;
     if (front === 'tertiary') return this.intraNoBottom;
     return []; // 栏目-only, or nothing picked yet — 排列 has no meaning
   }

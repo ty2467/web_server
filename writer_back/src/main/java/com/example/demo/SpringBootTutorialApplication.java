@@ -330,9 +330,9 @@ public class SpringBootTutorialApplication {
 
     //    ------helper methods for ingest
     private static final java.util.Set<String> FRONTS =
-            java.util.Set.of("main", "sub_main", "tertiary");
+            java.util.Set.of("super_main", "main", "sub_main", "tertiary");
     private static final java.util.Set<String> ZONES =
-            java.util.Set.of("main", "sub_main", "tertiary", "column");
+            java.util.Set.of("super_main", "main", "sub_main", "tertiary", "column");
 
     /**
      * The UI can't produce two fronts, so this isn't validation an editor
