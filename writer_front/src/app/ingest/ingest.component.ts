@@ -72,7 +72,45 @@ export class IngestComponent implements OnInit, OnDestroy {
     FontSize
   ];
 
+
   readonly fontSizes: string[] = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
+
+
+  /**----------------
+   * 固定栏位 — category dictates placement, decided at ingest, not at read time.
+   * The writer picks a category; the placement follows and is not editable.
+   */
+  private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
+    '美洲头条': { front: 'main', intra: 0 }   // 主板中心
+  };
+
+  get lockedZone(): { front: ZoneFront; intra: number } | null {
+    return this.categoryZoneLock[this.metaForm?.get('category')?.value] ?? null;
+  }
+
+  /**
+   * Forces 位置/排列 for a locked category and disables both controls.
+   * Both are read back with getRawValue() at submit, so a disabled control
+   * still reaches the wire; the group validator reads .value directly, which
+   * a disabled control also retains.
+   */
+  private applyCategoryLock() {
+    const lock = this.lockedZone;
+    const frontCtrl = this.metaForm.get('front')!;
+    const intraCtrl = this.metaForm.get('intra_section_zone')!;
+
+    if (!lock) {
+      frontCtrl.enable({ emitEvent: false });
+      this.syncIntraZoneValidity();
+      return;
+    }
+
+    frontCtrl.setValue(lock.front, { emitEvent: false });
+    this.syncIntraZoneValidity();                          // front set -> intra required + enabled
+    intraCtrl.setValue(lock.intra, { emitEvent: false });
+    frontCtrl.disable({ emitEvent: false });
+    intraCtrl.disable({ emitEvent: false });
+  }
 
 //9.16
 //   private readonly baseURL = `http://${window.location.hostname}:9000/api`;
@@ -112,7 +150,8 @@ export class IngestComponent implements OnInit, OnDestroy {
     // anywhere — so the required-validator half of the rule never ran and
     // 排列 could be left blank on a front. The subscription now delegates.
     this.metaForm.get('front')!.valueChanges.subscribe(() => this.syncIntraZoneValidity());
-    this.syncIntraZoneValidity();
+    this.metaForm.get('category')!.valueChanges.subscribe(() => this.applyCategoryLock());
+    this.applyCategoryLock();
 
     this.route.queryParams.subscribe((params: Params) => {
       this.clearAllBlocks();
@@ -234,9 +273,9 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   // Fixed publication categories — the template renders these as a dropdown
   // so editors can't free-type a variant that won't match on the read side.
-  readonly categories: string[] = [
-    '美洲头条', '美国观察', '工商新闻', '天天话题', '非常美洲', '精英访谈', 'CES 国际消费电子展', '场景展示'
-  ];
+  readonly categories: string[] = ['美洲头条', '天天话题', '美国观察',
+    '工商新闻', '出海专区', 'CES消费电子展', '美洲台探访', '商务合作',];
+
   get lastBlockId(): string | null {
     return this.blocks.length ? this.blocks[this.blocks.length - 1].localId : null;
   }
@@ -613,6 +652,7 @@ export class IngestComponent implements OnInit, OnDestroy {
         lead_image_caption: data.lead_image_caption
       });
       this.leadImagePreview = data.lead_image_url || null;
+      this.applyCategoryLock();
 
       this.clearAllBlocks();
 

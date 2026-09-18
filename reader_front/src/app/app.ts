@@ -16,11 +16,11 @@ export class App implements OnInit {
 
   menuItems: string[] = [
     '美洲头条',
+    '天天话题',
     '美国观察',
     '工商新闻',
-    '天天话题',
-    'CES消费电子展',
     '出海专区',
+    'CES消费电子展',
     '美洲台探访',
     '商务合作',
   ];
