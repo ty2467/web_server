@@ -630,7 +630,7 @@ class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         // 3. Allow anyone to see the login/static assets if needed
-                        .requestMatchers("/index.html", "/favicon.ico", "/*.js", "/*.css").permitAll()
+                        .requestMatchers("/favicon.ico", "/*.js", "/*.css").permitAll()
                         // 4. Everything else requires authentication
                         .anyRequest().authenticated()
                 )
