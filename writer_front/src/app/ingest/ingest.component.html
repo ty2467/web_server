@@ -35,7 +35,7 @@
             <label>位置<span class="required-mark">*</span></label>
             <div class="zone-picker">
               <div class="zone-group">
-                <label class="zone-opt" *ngFor="let opt of frontOptions">
+                <label class="zone-opt" *ngFor="let opt of availableFrontOptions">
                   <input type="radio" formControlName="front" [value]="opt.value"> {{ opt.label }}
                 </label>
                 <!-- Required, not decoration: a radio group cannot return to

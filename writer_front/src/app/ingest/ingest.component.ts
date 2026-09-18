@@ -80,12 +80,22 @@ export class IngestComponent implements OnInit, OnDestroy {
    * 固定栏位 — category dictates placement, decided at ingest, not at read time.
    * The writer picks a category; the placement follows and is not editable.
    */
-    private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
-      '美洲头条':   { front: 'main',       intra: 0 },  // 主板中心
-      '美洲台探访': { front: 'super_main', intra: 0 },  // 高光专区中心
-      '出海专区':   { front: 'super_main', intra: 1 },  // 高光专区侧
-      '商务合作':   { front: 'super_main', intra: 2 }   // 高光专区底
-    };
+  private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
+    '美洲头条':   { front: 'main',       intra: 0 },  // 主板中心
+    '美洲台探访': { front: 'super_main', intra: 0 },  // 高光专区中心
+    '出海专区':   { front: 'super_main', intra: 1 },  // 高光专区侧
+    '商务合作':   { front: 'super_main', intra: 2 }   // 高光专区底
+  };
+
+  get canUseSuperMain(): boolean {
+    return this.lockedZone?.front === 'super_main';
+  }
+
+  get availableFrontOptions(): { value: ZoneFront; label: string }[] {
+    return this.canUseSuperMain
+      ? this.frontOptions
+      : this.frontOptions.filter(o => o.value !== 'super_main');
+  }
 
   get lockedZone(): { front: ZoneFront; intra: number } | null {
     return this.categoryZoneLock[this.metaForm?.get('category')?.value] ?? null;
@@ -103,10 +113,13 @@ export class IngestComponent implements OnInit, OnDestroy {
     const intraCtrl = this.metaForm.get('intra_section_zone')!;
 
     if (!lock) {
-      frontCtrl.enable({ emitEvent: false });
-      this.syncIntraZoneValidity();
-      return;
-    }
+          // Switching away from a 高光专区 category leaves its front behind —
+          // that value is no longer offerable, so drop it.
+          if (frontCtrl.value === 'super_main') frontCtrl.setValue(null, { emitEvent: false });
+          frontCtrl.enable({ emitEvent: false });
+          this.syncIntraZoneValidity();
+          return;
+        }
 
     frontCtrl.setValue(lock.front, { emitEvent: false });
     this.syncIntraZoneValidity();                          // front set -> intra required + enabled
