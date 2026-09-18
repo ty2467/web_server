@@ -28,8 +28,9 @@ export interface Article {
 
 export const SLOT = { CENTER: 0, SIDE: 1, BOTTOM: 2 } as const;
 
-export type FrontKey = 'main' | 'sub_main' | 'tertiary';
-export const FRONT_KEYS: FrontKey[] = ['main', 'sub_main', 'tertiary'];
+export type FrontKey = 'super_main' | 'main' | 'sub_main' | 'tertiary';
+
+export const FRONT_KEYS: FrontKey[] = ['super_main', 'main', 'sub_main', 'tertiary'];
 
 export interface FrontBuckets {
   center: Article[];  // 中心
@@ -44,7 +45,7 @@ export function emptyFront(): FrontBuckets {
 }
 
 export function emptyLayout(): Record<FrontKey, FrontBuckets> {
-  return { main: emptyFront(), sub_main: emptyFront(), tertiary: emptyFront() };
+  return { super_main: emptyFront(), main: emptyFront(), sub_main: emptyFront(), tertiary: emptyFront() };
 }
 
 export function zonesOf(art: Article): Set<string> {

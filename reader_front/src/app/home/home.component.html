@@ -1,5 +1,51 @@
 <div class="container">
 
+  <!-- ============ 高光专区 (super_main) — same shape as 主板, above it ========= -->
+  <section class="top-lead-stack"
+           *ngIf="layout.super_main.center.length || layout.super_main.side.length || layout.super_main.bottom.length">
+
+    <div class="lead-story"
+         *ngFor="let m of layout.super_main.center"
+         [routerLink]="['/article', m.slug]">
+      <div class="lead-content">
+        <span class="category">{{ m.category }}</span>
+        <h1>{{ m.title }}</h1>
+        <p>{{ m.summary }}</p>
+      </div>
+
+      <div class="media-wrapper">
+        @defer (on timer(500ms); prefetch on idle) {
+        <img *ngIf="m.image" [src]="m.image" class="lead-image" alt="高光专区">
+        } @placeholder { <div class="media-skeleton"></div> }
+      </div>
+
+      <div class="side-news">
+        <div class="side-article"
+             *ngFor="let s of layout.super_main.side"
+             [routerLink]="['/article', s.slug]">
+          <img *ngIf="s.image" [src]="s.image" class="side-image">
+          <div class="side-text">
+            <span class="category small">{{ s.category }}</span>
+            <h4>{{ s.title }}</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="secondary-grid" *ngIf="layout.super_main.bottom.length">
+      <div class="secondary-column"
+           *ngFor="let b of layout.super_main.bottom"
+           [routerLink]="['/article', b.slug]">
+        <div class="column-header">{{ b.category }}</div>
+        <div class="secondary-card">
+          <img *ngIf="b.image" [src]="b.image" class="secondary-image">
+          <h3>{{ b.title }}</h3>
+          <p>{{ b.summary }}</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
   <!-- ===================== 主板 (main) — 中心 rotates ===================== -->
   <section class="top-lead-stack"
            *ngIf="layout.main.center.length || layout.main.side.length || layout.main.bottom.length">

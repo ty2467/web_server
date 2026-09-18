@@ -113,7 +113,8 @@ class NewsController {
      * scanned regardless.
      */
     private static final String ON_ANY_FRONT =
-            "(FIND_IN_SET('main', section_zone) " +
+            "(FIND_IN_SET('super_main', section_zone) " +
+                    " OR FIND_IN_SET('main', section_zone) " +
                     " OR FIND_IN_SET('sub_main', section_zone) " +
                     " OR FIND_IN_SET('tertiary', section_zone))";
 
@@ -126,7 +127,8 @@ class NewsController {
 
 
     private static final String FRONT_OF =
-            "CASE WHEN FIND_IN_SET('main', section_zone) THEN 'main' " +
+            "CASE WHEN FIND_IN_SET('super_main', section_zone) THEN 'super_main' " +
+                    "     WHEN FIND_IN_SET('main', section_zone) THEN 'main' " +
                     "     WHEN FIND_IN_SET('sub_main', section_zone) THEN 'sub_main' " +
                     "     WHEN FIND_IN_SET('tertiary', section_zone) THEN 'tertiary' END";
 
@@ -170,7 +172,8 @@ class NewsController {
                         "  FROM home_page h " +
                         "  WHERE section_zone IS NOT NULL AND section_zone <> '' " +
                         ") ranked " +
-                        "WHERE (front = 'main'     AND intra_section_zone = 0 AND rn_slot <= " + ROTISSERIE_CAP + ") " +
+                        "WHERE (front = 'super_main' AND intra_section_zone = 0 AND rn_slot <= 1) " +
+                        "   OR (front = 'main'     AND intra_section_zone = 0 AND rn_slot <= " + ROTISSERIE_CAP + ") " +
                         "   OR (front = 'sub_main' AND intra_section_zone = 0 AND rn_slot <= 1) " +
                         "   OR (front = 'tertiary' AND intra_section_zone = 0 AND rn_slot <= 1) " +
                         "   OR (front IS NOT NULL  AND intra_section_zone > 0 AND rn_slot <= 3) " +
