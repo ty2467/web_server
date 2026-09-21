@@ -23,6 +23,7 @@ export class App implements OnInit {
     'CES消费电子展',
     '美洲台探访',
     '商务合作',
+    '中美关系'
   ];
 
   stockData: any[] = [];
