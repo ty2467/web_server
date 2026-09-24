@@ -134,6 +134,11 @@ class NewsController {
 
     private static final int ROTISSERIE_CAP = 5;
 
+
+    private static final String LIVE_CATEGORIES =
+            "'美洲头条','天天话题','美国观察','工商新闻','出海专区'," +
+                    "'CES消费电子展','美洲台探访','商务合作'";
+
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {
         PageDataDTO data = new PageDataDTO();
@@ -171,6 +176,7 @@ class NewsController {
                         "           ORDER BY date_time DESC) AS rn_col " +
                         "  FROM home_page h " +
                         "  WHERE section_zone IS NOT NULL AND section_zone <> '' " +
+                        "    AND category IN (" + LIVE_CATEGORIES + ") " +
                         ") ranked " +
                         "WHERE (front = 'super_main' AND intra_section_zone = 0 AND rn_slot <= 1) " +
                         "   OR (front = 'main'     AND intra_section_zone = 0 AND rn_slot <= " + ROTISSERIE_CAP + ") " +
