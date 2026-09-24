@@ -136,7 +136,7 @@ class NewsController {
 
 
     private static final String LIVE_CATEGORIES =
-            "'美洲头条','天天话题','美国观察','工商新闻','出海专区'," +
+            "'美洲头条','天天话题','美国观察','中美关系','工商新闻','出海专区'," +
                     "'CES消费电子展','美洲台探访','商务合作'";
 
     @GetMapping("/home-page")

@@ -69,6 +69,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private readonly BOTTOM_STRIP_ORDER = ['天天话题', '美国观察', '中美关系'];
 
+  export const COLUMN_EXCLUDED_CATEGORY = '中美关系';
+
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
   currentLeadIndex = 0;
@@ -166,7 +168,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       // Independent of any front placement above. 栏目 has no 排列; the
       // column an article lands in is decided by its category.
       //HAPPY CAPPING
-      if (zones.has('column')) {
+      if (zones.has('column') && art.category !== COLUMN_EXCLUDED_CATEGORY) {
         const category = art.category || 'General';
         if (!byCategory.has(category)) byCategory.set(category, []);
         const col = byCategory.get(category)!;
