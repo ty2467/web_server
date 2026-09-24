@@ -188,6 +188,19 @@ export class IngestComponent implements OnInit, OnDestroy {
     this.editors.forEach(ed => ed.destroy());
   }
 
+  private readonly BOTTOM_STRIP = ['天天话题', '美国观察', '中美关系'];
+
+  get intraSectionZoneOptions(): { value: number; label: string }[] {
+    const front = this.metaForm?.get('front')?.value;
+    const cat = this.metaForm?.get('category')?.value;
+    if (front === 'main') {
+      return this.BOTTOM_STRIP.includes(cat) ? this.intraFull : this.intraNoBottom;
+    }
+    if (front === 'super_main' || front === 'sub_main') return this.intraFull;
+    if (front === 'tertiary') return this.intraNoBottom;
+    return [];
+  }
+
   // ===========================================================================
   // 位置 (section_zone) / 排列 (intra_section_zone)
   //
@@ -213,6 +226,7 @@ export class IngestComponent implements OnInit, OnDestroy {
   ];
   private readonly intraNoBottom = this.intraFull.slice(0, 2); // 中心, 侧 only
 
+
   get intraSectionZoneOptions(): { value: number; label: string }[] {
     const front = this.metaForm?.get('front')?.value;
     if (front === 'super_main' || front === 'main' || front === 'sub_main') return this.intraFull;
@@ -223,6 +237,8 @@ export class IngestComponent implements OnInit, OnDestroy {
   get intraSectionZoneDisabled(): boolean {
     return !this.metaForm?.get('front')?.value;
   }
+
+
 
   /**
    * Keeps 排列 consistent with 位置: drops a now-unofferable value, and
@@ -290,8 +306,8 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   // Fixed publication categories — the template renders these as a dropdown
   // so editors can't free-type a variant that won't match on the read side.
-  readonly categories: string[] = ['美洲头条', '天天话题', '美国观察',
-    '工商新闻', '出海专区', 'CES消费电子展', '美洲台探访', '商务合作',];
+   readonly categories: string[] = ['美洲头条', '天天话题', '美国观察', '中美关系',
+     '工商新闻', '出海专区', 'CES消费电子展', '美洲台探访', '商务合作',];
 
   get lastBlockId(): string | null {
     return this.blocks.length ? this.blocks[this.blocks.length - 1].localId : null;

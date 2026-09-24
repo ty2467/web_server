@@ -333,6 +333,71 @@ public class SpringBootTutorialApplication {
             java.util.Set.of("super_main", "main", "sub_main", "tertiary");
     private static final java.util.Set<String> ZONES =
             java.util.Set.of("super_main", "main", "sub_main", "tertiary", "column");
+    private static final java.util.Set<String> BOTTOM_STRIP =
+            java.util.Set.of("天天话题", "美国观察", "中美关系");
+
+
+    /** section_zone minus its front — 'main,column' -> 'column', 'main' -> null. */
+    private String stripFront(String sectionZone) {
+        if (sectionZone == null) return null;
+        java.util.LinkedHashSet<String> keep = new java.util.LinkedHashSet<>();
+        for (String part : sectionZone.split(",")) {
+            String z = part.trim();
+            if (!z.isEmpty() && !FRONTS.contains(z)) keep.add(z);
+        }
+        return keep.isEmpty() ? null : String.join(",", keep);
+    }
+
+
+    /**
+     * Decides whether the incoming article takes its category's 主板底 slot.
+     * Returns the incumbent's id to be demoted AFTER the incoming row lands,
+     * or null if there's nothing to demote.
+     *
+     * Ordering, not a transaction: the incumbent is only stripped once its
+     * replacement is actually in the table, so a failed write leaves the
+     * strip intact rather than empty.
+     */
+    private Long resolveBottomStrip(ArticleRequest article, String sectionZone, Long selfId) {
+        if (!BOTTOM_STRIP.contains(article.getCategory())) return null;
+        if (sectionZone == null || !hasZone(sectionZone, "main")) return null;
+        if (article.getIntra_section_zone() == null || article.getIntra_section_zone() != 2) return null;
+
+        Timestamp incoming = parseDateTimeLocal(article.getDate_time());
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT id, date_time FROM editors_db " +
+                        "WHERE category = ? AND FIND_IN_SET('main', section_zone) " +
+                        "  AND intra_section_zone = 2 AND (? IS NULL OR id <> ?) " +
+                        "ORDER BY date_time DESC LIMIT 1",
+                article.getCategory(), selfId, selfId);
+
+        if (rows.isEmpty()) return null;  // vacant — incoming takes it, nobody to demote
+
+        Map<String, Object> incumbent = rows.get(0);
+
+        if (incoming.after((Timestamp) incumbent.get("date_time"))) {
+            return ((Number) incumbent.get("id")).longValue();
+        }
+
+        // Incumbent is newer: incoming doesn't take the slot.
+        article.setSection_zone(stripFront(sectionZone));
+        article.setIntra_section_zone(null);
+        return null;
+    }
+
+    /** 栏目-only. Called only once the replacement row is committed. */
+    private void demoteFromBottomStrip(Long id) {
+        jdbcTemplate.update(
+                "UPDATE editors_db SET section_zone = 'column', intra_section_zone = NULL WHERE id = ?", id);
+        eventPublisher.publish(id, "update");
+    }
+
+    private boolean hasZone(String sectionZone, String zone) {
+        if (sectionZone == null) return false;
+        for (String z : sectionZone.split(",")) if (zone.equals(z.trim())) return true;
+        return false;
+    }
 
     /**
      * The UI can't produce two fronts, so this isn't validation an editor
@@ -391,6 +456,8 @@ public class SpringBootTutorialApplication {
             article.setIntra_section_zone(null);
         }
 
+
+        Long toDemote = resolveBottomStrip(article, sectionZone, isUpdate ? articleId : null);
         try {
             if (isUpdate) {
                 String updateSql = "UPDATE editors_db SET title=?, summary=?, author=?, category=?, " +
@@ -429,6 +496,8 @@ public class SpringBootTutorialApplication {
 
                 articleId = keyHolder.getKey().longValue();
             }
+
+            if (toDemote != null) demoteFromBottomStrip(toDemote);
 
             eventPublisher.publish(articleId, isUpdate ? "update" : "insert");
 

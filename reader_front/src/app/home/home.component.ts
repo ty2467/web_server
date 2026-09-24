@@ -27,6 +27,7 @@ interface StockQuote {
   templateUrl: './home.component.html',
   styleUrls: ['home.component.css']
 })
+
 export class HomeComponent implements OnInit, OnDestroy {
   @ViewChild('leadVideo') videoElement!: ElementRef<HTMLVideoElement>;
 
@@ -65,6 +66,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   // single row.
   private readonly COLUMNS_PER_ROW = 4;
   private readonly COLUMN_CAP = 4;
+  private readonly SIDE_CAP = 3;
 
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
@@ -178,6 +180,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     for (let i = 0; i < columns.length; i += this.COLUMNS_PER_ROW) {
       this.matrixRows.push(columns.slice(i, i + this.COLUMNS_PER_ROW));
     }
+
+    // 主板底 is a fixed strip, left to right. Its order is the CEO's, not
+    // date order — sorted here because arrival order can't express it.
+    this.layout.main.bottom.sort(
+      (a, b) => this.BOTTOM_STRIP_ORDER.indexOf(a.category) - this.BOTTOM_STRIP_ORDER.indexOf(b.category)
+    );
   }
 
   private placeInFront(key: FrontKey, art: Article) {
@@ -199,7 +207,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         break;
 
       case SLOT.SIDE:
-        bucket.side.push(art);
+        if (bucket.side.length < 3) bucket.side.push(art); //should be side_cap,
+        //but i dont' have time to waste at not interpreted constants
         break;
 
       case SLOT.BOTTOM:
