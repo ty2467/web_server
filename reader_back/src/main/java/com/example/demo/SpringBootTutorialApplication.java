@@ -123,7 +123,7 @@ class NewsController {
 
 
     private static final String CATEGORY_RANK =
-            "FIELD(category, '美洲头条', '工商新闻', 'CES 国际消费电子展', '天天话题')";
+            "FIELD(category, '美洲头条', '工商新闻', 'CES消费电子展', '天天话题')";
 
 
     private static final String FRONT_OF =
