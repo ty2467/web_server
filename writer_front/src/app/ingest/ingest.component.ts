@@ -135,7 +135,7 @@ export class IngestComponent implements OnInit, OnDestroy {
   private readonly API_URL = `${this.baseURL}/ingest`;
 
 
-  private readonly BOTTOM_STRIP_ORDER = ['天天话题', '美国观察', '中美关系'];
+
   private route = inject(ActivatedRoute);
 
   constructor(

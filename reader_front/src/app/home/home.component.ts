@@ -25,9 +25,8 @@ interface StockQuote {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './home.component.html',
-  styleUrls: ['home.component.css']
+  styleUrls: ['home.component.css'],
 })
-
 export class HomeComponent implements OnInit, OnDestroy {
   @ViewChild('leadVideo') videoElement!: ElementRef<HTMLVideoElement>;
 
@@ -68,6 +67,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   private readonly COLUMN_CAP = 4;
   private readonly SIDE_CAP = 3;
 
+  private readonly BOTTOM_STRIP_ORDER = ['天天话题', '美国观察', '中美关系'];
+
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
   currentLeadIndex = 0;
@@ -103,7 +104,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.route.data.subscribe(data => {
+    this.route.data.subscribe((data) => {
       const payload = data['articlePool'] as Article[] | undefined;
       if (payload) {
         this.ingestAndRoute(payload);
@@ -174,8 +175,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       }
     }
 
-    const columns: MatrixColumn[] = Array.from(byCategory.entries())
-      .map(([category, articles]) => ({ category, articles }));
+    const columns: MatrixColumn[] = Array.from(byCategory.entries()).map(
+      ([category, articles]) => ({ category, articles }),
+    );
 
     for (let i = 0; i < columns.length; i += this.COLUMNS_PER_ROW) {
       this.matrixRows.push(columns.slice(i, i + this.COLUMNS_PER_ROW));
@@ -184,7 +186,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     // 主板底 is a fixed strip, left to right. Its order is the CEO's, not
     // date order — sorted here because arrival order can't express it.
     this.layout.main.bottom.sort(
-      (a, b) => this.BOTTOM_STRIP_ORDER.indexOf(a.category) - this.BOTTOM_STRIP_ORDER.indexOf(b.category)
+      (a, b) =>
+        this.BOTTOM_STRIP_ORDER.indexOf(a.category) - this.BOTTOM_STRIP_ORDER.indexOf(b.category),
     );
   }
 
@@ -221,7 +224,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         break;
 
       default:
-        console.warn(`[home] id=${art.id}: on ${key} with no 排列 (got ${art.intra_section_zone}) — dropped`);
+        console.warn(
+          `[home] id=${art.id}: on ${key} with no 排列 (got ${art.intra_section_zone}) — dropped`,
+        );
     }
   }
 
