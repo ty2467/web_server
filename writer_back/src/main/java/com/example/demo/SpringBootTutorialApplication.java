@@ -334,7 +334,7 @@ public class SpringBootTutorialApplication {
     private static final java.util.Set<String> ZONES =
             java.util.Set.of("super_main", "main", "sub_main", "tertiary", "column");
     private static final java.util.Set<String> BOTTOM_STRIP =
-            java.util.Set.of("天天话题", "美国观察", "中美关系");
+            java.util.Set.of("天天話題", "美國觀察", "中美關係");
 
 
     /** section_zone minus its front — 'main,column' -> 'column', 'main' -> null. */
@@ -350,18 +350,16 @@ public class SpringBootTutorialApplication {
 
 
     /**
-     * Decides whether the incoming article takes its category's 主板底 slot.
+     * 主板底 is a fixed three-category strip. Membership is decided HERE, not
+     * by the editor: any article in one of the three contends for its
+     * category's slot the moment it is written. 栏目 presence is preserved
+     * either way — only the front is ours to set.
+     *
      * Returns the incumbent's id to be demoted AFTER the incoming row lands,
      * or null if there's nothing to demote.
-     *
-     * Ordering, not a transaction: the incumbent is only stripped once its
-     * replacement is actually in the table, so a failed write leaves the
-     * strip intact rather than empty.
      */
     private Long resolveBottomStrip(ArticleRequest article, String sectionZone, Long selfId) {
         if (!BOTTOM_STRIP.contains(article.getCategory())) return null;
-        if (sectionZone == null || !hasZone(sectionZone, "main")) return null;
-        if (article.getIntra_section_zone() == null || article.getIntra_section_zone() != 2) return null;
 
         Timestamp incoming = parseDateTimeLocal(article.getDate_time());
 
@@ -372,18 +370,31 @@ public class SpringBootTutorialApplication {
                         "ORDER BY date_time DESC LIMIT 1",
                 article.getCategory(), selfId, selfId);
 
-        if (rows.isEmpty()) return null;  // vacant — incoming takes it, nobody to demote
+        boolean inColumn = hasZone(sectionZone, "column");
+
+        if (rows.isEmpty()) {
+            // Vacant — incoming takes it.
+            seatOnBottomStrip(article, inColumn);
+            return null;
+        }
 
         Map<String, Object> incumbent = rows.get(0);
 
         if (incoming.after((Timestamp) incumbent.get("date_time"))) {
+            seatOnBottomStrip(article, inColumn);
             return ((Number) incumbent.get("id")).longValue();
         }
 
-        // Incumbent is newer: incoming doesn't take the slot.
-        article.setSection_zone(stripFront(sectionZone));
+        // Incumbent is newer: incoming does not take the slot, whatever the
+        // editor picked. Its 栏目 membership stands.
+        article.setSection_zone(inColumn ? "column" : null);
         article.setIntra_section_zone(null);
         return null;
+    }
+
+    private void seatOnBottomStrip(ArticleRequest article, boolean inColumn) {
+        article.setSection_zone(inColumn ? "main,column" : "main");
+        article.setIntra_section_zone(2);
     }
 
     /** 栏目-only. Called only once the replacement row is committed. */
