@@ -11,8 +11,8 @@ import {
 // resolving; layout.model.ts is the real home for them.
 export { SLOT };
 export type { Article, FrontKey, FrontBuckets, MatrixColumn };
-export const SHOWCASE_CATEGORY = '场景展示';
-export const COLUMN_EXCLUDED_CATEGORY = '中美关系';
+export const SHOWCASE_CATEGORY = '場景展示';
+export const COLUMN_EXCLUDED_CATEGORY = '中美關係';
 
 interface StockQuote {
   symbol: string;
@@ -68,7 +68,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private readonly COLUMN_CAP = 4;
   private readonly SIDE_CAP = 3;
 
-  private readonly BOTTOM_STRIP_ORDER = ['天天话题', '美国观察', '中美关系'];
+  private readonly BOTTOM_STRIP_ORDER = ['天天話題', '美國觀察', '中美關係'];
 
 
 
