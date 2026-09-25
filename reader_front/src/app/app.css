@@ -26,6 +26,11 @@
   height: auto;
 }
 
+
+body {
+  margin: 0;
+}
+
 /* Navigation Menu */
 .main-nav {
   padding: 10px 0;
