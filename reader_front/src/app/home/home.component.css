@@ -292,3 +292,15 @@
   50% { opacity: 0.9; }
   100% { opacity: 0.6; }
 }
+
+.lead-content p,
+.secondary-card p {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lead-content,
+.secondary-column {
+  min-width: 0;
+}
