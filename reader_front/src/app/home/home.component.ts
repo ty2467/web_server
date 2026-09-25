@@ -121,6 +121,14 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
+  function rendition(url: string | null | undefined, tier: 'big' | 'small') {
+    if (!url || !url.includes('/media/')) return url;
+    const slash = url.lastIndexOf('/');
+    const dot = url.lastIndexOf('.');
+    const stem = dot > slash ? url.slice(0, dot) : url;
+    return `${stem}_${tier}.webp`;
+  }
+
   // ===========================================================================
   // THE INGESTER
   //
@@ -144,8 +152,25 @@ export class HomeComponent implements OnInit, OnDestroy {
     const byCategory = new Map<string, Article[]>();
 
     for (const art of rawArticles) {
+      const zones = zonesOf(raw);
+
+      if (zones.size === 0) {
+        console.warn(`[home] id=${raw.id} "${raw.title}": no section_zone — not rendered`);
+        continue;
+      }
+
+      // Small is the default. The one exception is 中心 on a front.
+      const onFrontCenter =
+        raw.intra_section_zone === SLOT.CENTER && FRONT_KEYS.some((k) => zones.has(k));
+
+      const art: Article = {
+        ...raw,
+        cover_media_url: rendition(raw.cover_media_url, onFrontCenter ? 'big' : 'small'),
+      };
+
       this.articleStore.set(art.id, art);
-      const zones = zonesOf(art);
+//       const zones = zonesOf(art);
+
 
       if (zones.size === 0) {
         // The ingest form requires a placement, so an untagged row is
@@ -174,7 +199,13 @@ export class HomeComponent implements OnInit, OnDestroy {
         if (!byCategory.has(category)) byCategory.set(category, []);
         const col = byCategory.get(category)!;
         //todo: column cap was not being readable by this.
-        if (col.length < 4) col.push(art);
+        if (col.length < 4) {
+          col.push(
+            onFrontCenter
+              ? { ...art, cover_media_url: rendition(raw.cover_media_url, 'small') }
+              : art,
+          );
+        }
       }
     }
 
