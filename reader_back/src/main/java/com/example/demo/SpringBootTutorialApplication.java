@@ -123,7 +123,7 @@ class NewsController {
 
 
     private static final String CATEGORY_RANK =
-            "FIELD(category, '美洲头条', '工商新闻', 'CES消费电子展', '天天话题')";
+            "FIELD(category, '美洲頭條', '工商新聞', 'CES消費電子展', '天天話題')";
 
 
     private static final String FRONT_OF =
@@ -136,8 +136,8 @@ class NewsController {
 
 
     private static final String LIVE_CATEGORIES =
-            "'美洲头条','天天话题','美国观察','中美关系','工商新闻','出海专区'," +
-                    "'CES消费电子展','美洲台探访','商务合作'";
+            "'美洲頭條','天天話題','美國觀察','中美關係','工商新聞','出海專區'," +
+                    "'CES消費電子展','美洲台探訪','商務合作'";
 
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {
