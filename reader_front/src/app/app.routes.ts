@@ -7,7 +7,16 @@ import { CategoryComponent } from './category/category.component';
 import { ArticleDetailComponent } from './articlepage/app-article-detail.component';
 import { Article } from './articlepage/article.model';
 import { catchError, map, of } from 'rxjs';
+import { AboutComponent } from './about/about.component';
+import { StaticPageComponent } from './static-page/static-page.component';
 
+const staticHtml = (file: string) => () =>
+  inject(HttpClient).get(`/pages/${file}`, { responseType: 'text' }).pipe(
+    catchError(err => {
+      console.error(`${file} resolve failed`, err);
+      return of(null);
+    })
+  );
 
 export const routes: Routes = [
   {
@@ -55,6 +64,19 @@ export const routes: Routes = [
           })
         )
     }
+  },
+   { path: 'about', component: AboutComponent },
+  {
+    path: 'terms',
+    component: StaticPageComponent,
+    data: { title: '使用條款' },
+    resolve: { html: staticHtml('terms.html') }
+  },
+  {
+    path: 'privacy',
+    component: StaticPageComponent,
+    data: { title: '隱私權保護聲明' },
+    resolve: { html: staticHtml('privacy.html') }
   },
   { path: '', redirectTo: '/home', pathMatch: 'full' }
 ];
