@@ -60,7 +60,7 @@ export function isOnAnyFront(art: Article): boolean {
   return FRONT_KEYS.some(k => zones.has(k));
 }
 
-function rendition(url: string | undefined, tier: 'big' | 'small'): string | undefined {
+export function rendition(url: string | undefined, tier: 'big' | 'small'): string | undefined {
   if (!url || !url.includes('/media/')) return url;
   const slash = url.lastIndexOf('/');
   const dot = url.lastIndexOf('.');
