@@ -9,6 +9,7 @@ import { Article } from './articlepage/article.model';
 import { catchError, map, of } from 'rxjs';
 import { AboutComponent } from './about/about.component';
 import { StaticPageComponent } from './static-page/static-page.component';
+import { ContactComponent } from './contact/contact.component';
 
 const staticHtml = (file: string) => () =>
   inject(HttpClient).get(`/pages/${file}`, { responseType: 'text' }).pipe(
@@ -66,6 +67,7 @@ export const routes: Routes = [
     }
   },
    { path: 'about', component: AboutComponent },
+   { path: 'contact', component: ContactComponent },
   {
     path: 'terms',
     component: StaticPageComponent,
