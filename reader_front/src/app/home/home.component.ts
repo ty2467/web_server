@@ -139,6 +139,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.layout = emptyLayout();
     this.matrixRows = [];
     this.currentLeadIndex = 0;
+    this.showcaseHead = 0;
 
     const byCategory = new Map<string, Article[]>();
 
