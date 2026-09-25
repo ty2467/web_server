@@ -14,16 +14,28 @@ import { forkJoin, map } from 'rxjs';
 export class App implements OnInit {
   private http = inject(HttpClient);
 
+//   menuItems: string[] = [
+//     '美洲头条',
+//     '天天话题',
+//     '美国观察',
+//     '工商新闻',
+//     '出海专区',
+//     'CES消费电子展',
+//     '美洲台探访',
+//     '商务合作',
+//     '中美关系'
+//   ];
+
   menuItems: string[] = [
-    '美洲头条',
-    '天天话题',
-    '美国观察',
-    '工商新闻',
-    '出海专区',
-    'CES消费电子展',
-    '美洲台探访',
-    '商务合作',
-    '中美关系'
+    '美洲頭條',
+    '天天話題',
+    '美國觀察',
+    '工商新聞',
+    '出海專區',
+    'CES消費電子展',
+    '美洲台探訪',
+    '商務合作',
+    '中美關係'
   ];
 
   stockData: any[] = [];
