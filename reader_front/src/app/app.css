@@ -16,6 +16,9 @@
 .logo-container {
   font-size: 32px;
   line-height: 1.2;
+  width: calc(100% - 40px);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .logo-image {
