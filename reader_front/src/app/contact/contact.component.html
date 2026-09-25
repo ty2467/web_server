@@ -1,0 +1,37 @@
+<div class="page-wrapper">
+  <div class="glass-card">
+    <div class="header-row">
+      <div class="title-group">
+        <h3>聯絡我們</h3>
+        <p class="subtitle">Phoenix Satellite TV (U.S.) Inc.</p>
+      </div>
+      <span class="badge">Contact</span>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-tile">
+        <span class="label">地址</span>
+        <span class="value">3810 Durbin St, Irwindale, CA 91706</span>
+      </div>
+      <div class="info-tile">
+        <span class="label">電話</span>
+        <a class="value" href="tel:6263881188">626-388-1188</a>
+      </div>
+      <div class="info-tile">
+        <span class="label">傳真</span>
+        <span class="value">626-388-1118</span>
+      </div>
+      <div class="info-tile">
+        <span class="label">電郵</span>
+        <a class="value" href="mailto:shaluo@phoenixtv-us.com">shaluo&#64;phoenixtv-us.com</a>
+      </div>
+    </div>
+
+    <h4 class="section-label">社交媒體</h4>
+    <div class="social-row">
+      @for (s of socials; track s.url) {
+      <a class="social-pill" [href]="s.url" target="_blank" rel="noopener">{{ s.name }}</a>
+      }
+    </div>
+  </div>
+</div>
