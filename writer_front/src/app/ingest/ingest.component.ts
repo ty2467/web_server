@@ -80,12 +80,12 @@ export class IngestComponent implements OnInit, OnDestroy {
    * 固定栏位 — category dictates placement, decided at ingest, not at read time.
    * The writer picks a category; the placement follows and is not editable.
    */
-  private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
-    '美洲头条':   { front: 'main',       intra: 0 },  // 主板中心
-    '美洲台探访': { front: 'super_main', intra: 0 },  // 高光专区中心
-    '出海专区':   { front: 'super_main', intra: 1 },  // 高光专区侧
-    '商务合作':   { front: 'super_main', intra: 2 }   // 高光专区底
-  };
+   private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
+     '美洲頭條':   { front: 'main',       intra: 0 },  // 主板中心
+     '美洲台探訪': { front: 'super_main', intra: 0 },  // 高光專區中心
+     '出海專區':   { front: 'super_main', intra: 1 },  // 高光專區側
+     '商務合作':   { front: 'super_main', intra: 2 }   // 高光專區底
+   };
 
   get canUseSuperMain(): boolean {
     return this.lockedZone?.front === 'super_main';
@@ -190,7 +190,7 @@ export class IngestComponent implements OnInit, OnDestroy {
     this.editors.forEach(ed => ed.destroy());
   }
 
-  private readonly BOTTOM_STRIP = ['天天话题', '美国观察', '中美关系'];
+   private readonly BOTTOM_STRIP = ['天天話題', '美國觀察', '中美關係'];
 
   get intraSectionZoneOptions(): { value: number; label: string }[] {
     const front = this.metaForm?.get('front')?.value;
