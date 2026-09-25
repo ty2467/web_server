@@ -1,19 +1,24 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
-import { Article, SLOT, zonesOf, isOnAnyFront } from '../layout.model';
-
+import { Article, SLOT, zonesOf, isOnAnyFront, rendition } from '../layout.model';
 /**
  * The category page's one front block. Declared here rather than imported
  * from home.component: this shape is specific to THIS page (a single unit
  * with capped sides/sections above a row feed), and the homepage no longer
  * has anything of the kind.
  */
+// Copies, not in-place edits: the resolver hands over the same objects on
+// every emission, so rewriting image in place would stack suffixes.
+const big = (a: Article): Article => ({ ...a, image: rendition(a.image, 'big') });
+const small = (a: Article): Article => ({ ...a, image: rendition(a.image, 'small') });
 export interface CategoryFront {
   main: Article;
   sides: Article[];
   sections: Article[];
 }
+
+
 
 @Component({
   selector: 'app-category',
@@ -90,13 +95,13 @@ export class CategoryComponent implements OnInit {
       }
     }
 
-    // The block's lead. If this category has no 中心 at all, promote the
-    // newest thing available rather than rendering an empty front.
+    //small is default.
     const main = centers.shift() ?? pool.shift();
     if (!main) {
-      this.rows = pool;
+      this.rows = pool.map(small);
       return;
     }
+
 
     const sides = sideTagged.splice(0, this.SIDES_CAP);
     const sections = sectionTagged.splice(0, this.SECTIONS_CAP);
@@ -105,10 +110,10 @@ export class CategoryComponent implements OnInit {
     while (sides.length < this.SIDES_CAP && pool.length) sides.push(pool.shift()!);
     while (sections.length < this.SECTIONS_CAP && pool.length) sections.push(pool.shift()!);
 
-    this.majorFront = { main, sides, sections };
+    this.majorFront = { main: big(main), sides: sides.map(small), sections: sections.map(small) };
 
     // OVERFLOW — extra 中心/侧/底 beyond what the single block holds go to
     // the top of the feed, ahead of untagged articles.
-    this.rows = [...centers, ...sideTagged, ...sectionTagged, ...pool];
+    this.rows = [...centers, ...sideTagged, ...sectionTagged, ...pool].map(small);
   }
 }

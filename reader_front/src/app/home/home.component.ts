@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 
 import {
   Article, SLOT, FrontKey, FRONT_KEYS, FrontBuckets, MatrixColumn,
-  emptyLayout, zonesOf
+  emptyLayout, zonesOf, rendition
 } from '../layout.model';
 
 // Re-exported so any existing import of these from home.component keeps
@@ -13,14 +13,6 @@ export { SLOT };
 export type { Article, FrontKey, FrontBuckets, MatrixColumn };
 export const SHOWCASE_CATEGORY = '场景展示';
 export const COLUMN_EXCLUDED_CATEGORY = '中美关系';
-
-function rendition(url: string | undefined, tier: 'big' | 'small'): string | undefined {
-  if (!url || !url.includes('/media/')) return url;
-  const slash = url.lastIndexOf('/');
-  const dot = url.lastIndexOf('.');
-  const stem = dot > slash ? url.slice(0, dot) : url;
-  return `${stem}_${tier}.webp`;
-}
 
 interface StockQuote {
   symbol: string;
