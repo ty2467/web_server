@@ -6,6 +6,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * For an original at /srv/media/ifengus/<dir>/<name>.<ext>, produces
@@ -15,11 +18,17 @@ import java.nio.file.StandardCopyOption;
  * Shared by the one-off backfill and, later, the ingest-time listener.
  * Idempotent: a tier is skipped when its file exists and is not older than
  * the source, so re-runs only redo what changed.
+ *
+ * Every output is exactly the tier's 16:9 box: the source is shrunk to fit
+ * inside it (never enlarged, never cropped) and padded out to the box.
+ * A true 16:9 source fills it with no padding at all.
  */
 public final class Renditions {
 
     static final Path MEDIA_ROOT = Path.of("/srv/media/ifengus");
     static final String URL_PREFIX = "/media/";
+
+    private static final Pattern HEADER = Pattern.compile("(\\d+)x(\\d+) \\w+, (\\d+) bands?,");
 
     enum Tier {
         BIG("big", 1200, 675),
@@ -93,32 +102,70 @@ public final class Renditions {
 
     private static boolean isFresh(Path out, Path src) throws IOException {
         return Files.exists(out)
-            && Files.getLastModifiedTime(out).compareTo(Files.getLastModifiedTime(src)) >= 0;
+                && Files.getLastModifiedTime(out).compareTo(Files.getLastModifiedTime(src)) >= 0;
     }
 
     /**
-     * Resizes and attention-crops to the exact tier box, then renames into
-     * place so nginx never serves a half-written file.
+     * Writes the tier's exact box to a temp file, then renames into place so
+     * nginx never serves a half-written file.
+     *
+     * vipsthumbnail fits inside the box without enlarging ("WxH>"), then
+     * vips gravity centres that on a WxH canvas — white, or transparent when
+     * the image has alpha (WebP keeps it).
      */
     private static void renderTier(Path src, Path out, Tier tier)
             throws IOException, InterruptedException {
         Path tmp = out.resolveSibling(out.getFileName() + ".tmp.webp");
+        Path fit = out.resolveSibling(out.getFileName() + ".fit.v");
+        String box = tier.w + "x" + tier.h;
 
-        Process p = new ProcessBuilder(
-                "vipsthumbnail", src.toString(),
-                "--size", tier.w + "x" + tier.h,
-                "--smartcrop", "attention",
-                "-o", tmp + "[Q=75,keep=none]")
-            .redirectErrorStream(true)
-            .start();
+        try {
+            exec(List.of("vipsthumbnail", src.toString(),
+                    "--size", box + ">", "-o", fit.toString()));
+            // Bands read from the fitted image, not the source:
+            // vipsthumbnail may have converted it (e.g. CMYK -> sRGB).
+            int bands = probe(fit)[2];
+            exec(List.of("vips", "gravity", fit.toString(), tmp + "[Q=75,keep=none]", "centre",
+                    String.valueOf(tier.w), String.valueOf(tier.h),
+                    "--extend", "background", "--background", padColour(bands)));
 
+            if (!Files.isRegularFile(tmp)) throw new IOException("no output written");
+            Files.move(tmp, out, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException | InterruptedException e) {
+            Files.deleteIfExists(tmp);
+            throw e;
+        } finally {
+            Files.deleteIfExists(fit);
+        }
+    }
+
+    /** {width, height, bands} from vipsheader's one-line summary. */
+    private static int[] probe(Path file) throws IOException, InterruptedException {
+        String line = exec(List.of("vipsheader", file.toString()));
+        Matcher m = HEADER.matcher(line);
+        if (!m.find()) throw new IOException("unreadable header: " + line);
+        return new int[] {
+                Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3))
+        };
+    }
+
+    /** White for opaque images; white at zero alpha where there is an alpha band. */
+    private static String padColour(int bands) {
+        return switch (bands) {
+            case 1 -> "255";
+            case 2 -> "255 0";
+            case 3 -> "255 255 255";
+            default -> "255 255 255 0";
+        };
+    }
+
+    private static String exec(List<String> cmd) throws IOException, InterruptedException {
+        Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         String log = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
         int code = p.waitFor();
-        if (code != 0 || !Files.isRegularFile(tmp)) {
-            Files.deleteIfExists(tmp);
-            throw new IOException("vipsthumbnail exit " + code + (log.isEmpty() ? "" : ": " + log));
+        if (code != 0) {
+            throw new IOException(cmd.get(0) + " exit " + code + (log.isEmpty() ? "" : ": " + log));
         }
-
-        Files.move(tmp, out, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        return log;
     }
 }
