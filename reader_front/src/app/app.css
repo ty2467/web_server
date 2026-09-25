@@ -37,10 +37,11 @@
 
 .menu-bar ul {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   display: flex;
-  white-space: nowrap; /* Prevents awkward vertical stacking */
+  white-space: nowrap;
+  width: max-content;
 }
 
 .menu-bar li {
