@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import renditions.RenditionHook;
 /**
  * Second independent listener on the same exchange as consumer_editorsdb.
  * Projects editors_db into home_page — a flat, body-less read model for
@@ -243,7 +244,8 @@ public class HomePageSync {
                 ps.setString(10, slug);
                 ps.executeUpdate();
             }
-        }
+	    RenditionHook.enqueue(src.id, src.leadImageUrl);	
+	}
     }
 
     //---deletion method

@@ -229,12 +229,7 @@ export class IngestComponent implements OnInit, OnDestroy {
   private readonly intraNoBottom = this.intraFull.slice(0, 2); // 中心, 侧 only
 
 
-  get intraSectionZoneOptions(): { value: number; label: string }[] {
-    const front = this.metaForm?.get('front')?.value;
-    if (front === 'super_main' || front === 'main' || front === 'sub_main') return this.intraFull;
-    if (front === 'tertiary') return this.intraNoBottom;
-    return []; // 栏目-only, or nothing picked yet — 排列 has no meaning
-  }
+
 
   get intraSectionZoneDisabled(): boolean {
     return !this.metaForm?.get('front')?.value;
