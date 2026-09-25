@@ -12,6 +12,15 @@ import {
 export { SLOT };
 export type { Article, FrontKey, FrontBuckets, MatrixColumn };
 export const SHOWCASE_CATEGORY = '场景展示';
+export const COLUMN_EXCLUDED_CATEGORY = '中美关系';
+
+function rendition(url: string | undefined, tier: 'big' | 'small'): string | undefined {
+  if (!url || !url.includes('/media/')) return url;
+  const slash = url.lastIndexOf('/');
+  const dot = url.lastIndexOf('.');
+  const stem = dot > slash ? url.slice(0, dot) : url;
+  return `${stem}_${tier}.webp`;
+}
 
 interface StockQuote {
   symbol: string;
@@ -69,7 +78,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private readonly BOTTOM_STRIP_ORDER = ['天天话题', '美国观察', '中美关系'];
 
-  export const COLUMN_EXCLUDED_CATEGORY = '中美关系';
+
 
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
@@ -121,13 +130,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  function rendition(url: string | null | undefined, tier: 'big' | 'small') {
-    if (!url || !url.includes('/media/')) return url;
-    const slash = url.lastIndexOf('/');
-    const dot = url.lastIndexOf('.');
-    const stem = dot > slash ? url.slice(0, dot) : url;
-    return `${stem}_${tier}.webp`;
-  }
+
 
   // ===========================================================================
   // THE INGESTER
@@ -151,7 +154,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     const byCategory = new Map<string, Article[]>();
 
-    for (const art of rawArticles) {
+    for (const raw of rawArticles) {
       const zones = zonesOf(raw);
 
       if (zones.size === 0) {
@@ -165,9 +168,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
       const art: Article = {
         ...raw,
-        cover_media_url: rendition(raw.cover_media_url, onFrontCenter ? 'big' : 'small'),
+        image: rendition(raw.image, onFrontCenter ? 'big' : 'small'),
       };
-
       this.articleStore.set(art.id, art);
 //       const zones = zonesOf(art);
 
@@ -201,9 +203,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         //todo: column cap was not being readable by this.
         if (col.length < 4) {
           col.push(
-            onFrontCenter
-              ? { ...art, cover_media_url: rendition(raw.cover_media_url, 'small') }
-              : art,
+            onFrontCenter ? { ...art, image: rendition(raw.image, 'small') } : art,
           );
         }
       }
