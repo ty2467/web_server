@@ -22,7 +22,8 @@
       <div class="side-news">
         <div class="side-article"
              *ngFor="let s of layout.super_main.side"
-             [routerLink]="['/article', s.slug]">
+             [routerLink]="['/article', s.slug]"
+             (click)="$event.stopPropagation()">
           <img *ngIf="s.image" [src]="s.image" class="side-image">
           <div class="side-text">
             <span class="category small">{{ s.category }}</span>
