@@ -53,22 +53,25 @@
 
     <div class="lead-story"
          *ngIf="topLeadArticle as lead"
-         [routerLink]="['/article', lead.slug]"
-         [ngClass]="fadeState()"
-         style="cursor:pointer;">
-      <div class="lead-content">
+         [ngClass]="fadeState()">
+      <div class="lead-content"
+           [routerLink]="['/article', lead.slug]"
+           style="cursor:pointer;">
         <span class="category">{{ lead.category }}</span>
         <h1>{{ lead.title }}</h1>
         <p>{{ lead.summary }}</p>
       </div>
 
-      <div class="media-wrapper">
+      <div class="media-wrapper"
+           [routerLink]="['/article', lead.slug]"
+           style="cursor:pointer;">
         @defer (on timer(500ms); prefetch on idle) {
         <img *ngIf="lead.image" [src]="lead.image" class="lead-image" alt="lead image">
         } @placeholder { <div class="media-skeleton"></div> }
       </div>
 
       <div class="side-news">
+        <!-- unchanged -->
         <div class="side-article"
              *ngFor="let s of layout.main.side"
              [routerLink]="['/article', s.slug]">
