@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="63173836-54a7-41de-9824-ae20820e3924" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/resources/static/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../reader_back/src/main/resources/static/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../reader_back/src/main/resources/static/main-WZ4BWKGZ.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/resources/static/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../writer_back/src/main/resources/static/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../writer_back/src/main/resources/static/main-N2O3WET4.js" beforeDir="false" />
-    </list>
+    <list default="true" id="63173836-54a7-41de-9824-ae20820e3924" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -85,8 +80,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-30f59d01ecdd-34e2839f716b-intellij.indexing.shared.core-IU-262.9437.185" />
-        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-IU-262.9437.185" />
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.26199.169" />
       </set>
     </attachedChunks>
   </component>

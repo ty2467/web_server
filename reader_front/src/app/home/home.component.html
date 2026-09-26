@@ -5,30 +5,29 @@
            *ngIf="layout.super_main.center.length || layout.super_main.side.length || layout.super_main.bottom.length">
 
     <div class="lead-story"
-         *ngFor="let m of layout.super_main.center"
-         [routerLink]="['/article', m.slug]">
-      <div class="lead-content">
-        <span class="category">{{ m.category }}</span>
-        <h1>{{ m.title }}</h1>
-        <p>{{ m.summary }}</p>
+         *ngIf="topLeadArticle as lead"
+         [ngClass]="fadeState()">
+      <div class="lead-content"
+           [routerLink]="['/article', lead.slug]"
+           style="cursor:pointer;">
+        <span class="category">{{ lead.category }}</span>
+        <h1>{{ lead.title }}</h1>
+        <p>{{ lead.summary }}</p>
       </div>
 
-      <div class="media-wrapper">
+      <div class="media-wrapper"
+           [routerLink]="['/article', lead.slug]"
+           style="cursor:pointer;">
         @defer (on timer(500ms); prefetch on idle) {
-        <img *ngIf="m.image" [src]="m.image" class="lead-image" alt="高光专区">
+        <img *ngIf="lead.image" [src]="lead.image" class="lead-image" alt="lead image">
         } @placeholder { <div class="media-skeleton"></div> }
       </div>
 
       <div class="side-news">
         <div class="side-article"
-             *ngFor="let s of layout.super_main.side"
-             [routerLink]="['/article', s.slug]"
-             (click)="$event.stopPropagation()">
-          <img *ngIf="s.image" [src]="s.image" class="side-image">
-          <div class="side-text">
-            <span class="category small">{{ s.category }}</span>
-            <h4>{{ s.title }}</h4>
-          </div>
+             *ngFor="let s of layout.main.side"
+             [routerLink]="['/article', s.slug]">
+          ...
         </div>
       </div>
     </div>
