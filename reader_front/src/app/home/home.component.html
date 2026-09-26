@@ -25,7 +25,7 @@
 
       <div class="side-news">
         <div class="side-article"
-             *ngFor="let s of layout.main.side"
+             *ngFor="let s of layout.main.side; trackBy: trackBySlug"
              [routerLink]="['/article', s.slug]">
           ...
         </div>

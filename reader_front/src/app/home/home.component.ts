@@ -70,7 +70,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private readonly BOTTOM_STRIP_ORDER = ['天天話題', '美國觀察', '中美關係'];
 
-
+  trackBySlug = (_: number, a: { slug: string }) => a.slug;
 
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
