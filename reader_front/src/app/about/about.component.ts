@@ -9,21 +9,19 @@ import { Component } from '@angular/core';
     <section class="about-wrap">
       <div class="about-head">
         <h2 class="about-title">Phoenix TV Americas</h2>
+        <img src="/about/logo.png" class="about-logo" alt="Phoenix TV logo" />
       </div>
 
       <div class="about-intro">
         <img src="/about/collage.png" class="about-collage" alt="Phoenix TV Americas building, studios and newsroom" />
-        <div class="about-side">
-          <img src="/about/logo.png" class="about-logo" alt="Phoenix TV logo" />
-          <p class="about-text">
-            Founded in the U.S. in 2001, Phoenix TV Americas is a leading Chinese-language media platform
-            delivering trusted news and original programming across the Americas via cable, IPTV, and digital
-            streaming. As one of the most established Chinese media brands outside Asia, Phoenix connects global
-            Chinese communities with the world through credible journalism and culturally relevant storytelling.
-            Through the global Phoenix Television network, our content reaches audiences in 63 countries and
-            regions worldwide.
-          </p>
-        </div>
+        <p class="about-text">
+          Founded in the U.S. in 2001, Phoenix TV Americas is a leading Chinese-language media platform
+          delivering trusted news and original programming across the Americas via cable, IPTV, and digital
+          streaming. As one of the most established Chinese media brands outside Asia, Phoenix connects global
+          Chinese communities with the world through credible journalism and culturally relevant storytelling.
+          Through the global Phoenix Television network, our content reaches audiences in 63 countries and
+          regions worldwide.
+        </p>
       </div>
 
       <div class="stats">
@@ -58,14 +56,14 @@ import { Component } from '@angular/core';
   styles: [`
     .about-wrap { --gap: 16px; max-width: 1200px; margin: 0 auto; padding: 48px 24px 72px; color: #1a1a1a; }
 
-    .about-head { margin-bottom: 40px; }
-    .about-title { margin: 0; font-size: 2.75rem; font-weight: 700; line-height: 1.1; }
+    .about-head, .about-intro { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 48px; }
 
-    .about-intro { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 48px; align-items: stretch; }
-    .about-collage { display: block; width: 100%; height: auto; align-self: start; }
-    .about-side { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; }
-    .about-logo { height: 150px; width: auto; align-self: flex-start; }
-    .about-text { margin: 0; font-size: 1.3rem; line-height: 1.65; }
+    .about-head { align-items: start; margin-bottom: 40px; }
+    .about-title { margin: 0; font-size: 2.75rem; font-weight: 700; line-height: 1.1; }
+    .about-logo { height: 150px; width: auto; justify-self: start; margin-bottom: -150px; position: relative; z-index: 1; }
+
+    .about-collage { display: block; width: 100%; height: auto; }
+    .about-text { align-self: end; margin: 0; font-size: 1.2rem; line-height: 1.6; }
 
     .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); margin-top: 88px; }
     .stat { background: #E57035; color: #fff; min-height: 200px; padding: 24px 16px;
@@ -78,9 +76,10 @@ import { Component } from '@angular/core';
     .stat.reach .stat-label { color: #1a1a1a; font-size: 1.35rem; margin-top: 12px; }
 
     @media (max-width: 768px) {
+      .about-head { grid-template-columns: auto auto; justify-content: start; align-items: center; gap: 20px; }
       .about-title { font-size: 2rem; }
+      .about-logo { height: 48px; margin-bottom: 0; }
       .about-intro { grid-template-columns: 1fr; gap: 24px; }
-      .about-logo { height: 96px; }
       .about-text { font-size: 1.125rem; }
       .stats { grid-template-columns: 1fr; }
       .stat.reach { margin-left: 0; }
