@@ -188,7 +188,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       // Independent of any front placement above. 栏目 has no 排列; the
       // column an article lands in is decided by its category.
       //HAPPY CAPPING
-      if (zones.has('column') && art.category !== COLUMN_EXCLUDED_CATEGORY) {
+//       if (zones.has('column') && art.category !== COLUMN_EXCLUDED_CATEGORY) {
+      if (zones.has('column') ) { //need 中美关系for now. we can puge it or another later
+
         const category = art.category || 'General';
         if (!byCategory.has(category)) byCategory.set(category, []);
         const col = byCategory.get(category)!;
