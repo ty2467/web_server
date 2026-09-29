@@ -303,6 +303,17 @@
   text-overflow: ellipsis;
 }
 
+
 .secondary-column {
   min-width: 0;
+}
+
+/*yer stick's not even touching the ground man*/
+.secondary-card h3 {
+  line-height: 1.5;
+  min-height: 3em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
