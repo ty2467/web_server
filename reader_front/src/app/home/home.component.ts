@@ -236,7 +236,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         break;
 
       case SLOT.SIDE:
-        if (bucket.side.length < 3) bucket.side.push(art); //should be side_cap,
+        if (bucket.side.length < 4) bucket.side.push(art); //should be side_cap,
         //but i dont' have time to waste at not interpreted constants
         break;
 

@@ -182,7 +182,8 @@ class NewsController {
                         "   OR (front = 'main'     AND intra_section_zone = 0 AND rn_slot <= " + ROTISSERIE_CAP + ") " +
                         "   OR (front = 'sub_main' AND intra_section_zone = 0 AND rn_slot <= 1) " +
                         "   OR (front = 'tertiary' AND intra_section_zone = 0 AND rn_slot <= 1) " +
-                        "   OR (front IS NOT NULL  AND intra_section_zone > 0 AND rn_slot <= 3) " +
+                        "   OR (front IS NOT NULL  AND intra_section_zone = 1 AND rn_slot <= 4) " +
+                        "   OR (front IS NOT NULL  AND intra_section_zone = 2 AND rn_slot <= 3) " +
                         "   OR (is_column AND rn_col <= 4) " +
                         "ORDER BY " + CATEGORY_RANK + " = 0, " + CATEGORY_RANK + ", date_time DESC";
         data.articlePool = queryArticles(sql);
