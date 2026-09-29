@@ -229,11 +229,11 @@
   }
 
   .side-image {
-    width: 92px;
-    height: 64px;
-    object-fit: cover;
-    border-radius: 4px;
-    flex-shrink: 0;
+   width: 100px;
+   height: 70px;
+   object-fit: cover;
+   border-radius: 4px;
+   flex-shrink: 0;
   }
 
   .side-text h4 {
