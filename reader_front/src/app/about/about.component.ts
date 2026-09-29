@@ -4,22 +4,26 @@ import { Component } from '@angular/core';
   selector: 'app-about',
   standalone: true,
   template: `
+    <h1 class="page-title">關於我們</h1>
+
     <section class="about-wrap">
       <div class="about-head">
         <h2 class="about-title">Phoenix TV Americas</h2>
-        <img src="/about/logo.png" class="about-logo" alt="Phoenix TV logo" />
       </div>
 
       <div class="about-intro">
         <img src="/about/collage.png" class="about-collage" alt="Phoenix TV Americas building, studios and newsroom" />
-        <p class="about-text">
-          Founded in the U.S. in 2001, Phoenix TV Americas is a leading Chinese-language media platform
-          delivering trusted news and original programming across the Americas via cable, IPTV, and digital
-          streaming. As one of the most established Chinese media brands outside Asia, Phoenix connects global
-          Chinese communities with the world through credible journalism and culturally relevant storytelling.
-          Through the global Phoenix Television network, our content reaches audiences in 63 countries and
-          regions worldwide.
-        </p>
+        <div class="about-side">
+          <img src="/about/logo.png" class="about-logo" alt="Phoenix TV logo" />
+          <p class="about-text">
+            Founded in the U.S. in 2001, Phoenix TV Americas is a leading Chinese-language media platform
+            delivering trusted news and original programming across the Americas via cable, IPTV, and digital
+            streaming. As one of the most established Chinese media brands outside Asia, Phoenix connects global
+            Chinese communities with the world through credible journalism and culturally relevant storytelling.
+            Through the global Phoenix Television network, our content reaches audiences in 63 countries and
+            regions worldwide.
+          </p>
+        </div>
       </div>
 
       <div class="stats">
@@ -32,7 +36,6 @@ import { Component } from '@angular/core';
       </div>
     </section>
 
-    <h1 class="page-title">關於我們</h1>
     <div class="slide-grid">
       @for (src of slides; track src; let i = $index) {
         <img [src]="src" class="slide-thumb" (click)="open(i)" />
@@ -55,13 +58,14 @@ import { Component } from '@angular/core';
   styles: [`
     .about-wrap { --gap: 16px; max-width: 1200px; margin: 0 auto; padding: 48px 24px 72px; color: #1a1a1a; }
 
-    .about-head { display: flex; align-items: center; gap: 48px; margin-bottom: 40px; }
+    .about-head { margin-bottom: 40px; }
     .about-title { margin: 0; font-size: 2.75rem; font-weight: 700; line-height: 1.1; }
-    .about-logo { height: 110px; width: auto; }
 
-    .about-intro { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 48px; align-items: center; }
-    .about-collage { display: block; width: 100%; height: auto; }
-    .about-text { margin: 0; font-size: 1.125rem; line-height: 1.7; }
+    .about-intro { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 48px; align-items: stretch; }
+    .about-collage { display: block; width: 100%; height: auto; align-self: start; }
+    .about-side { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; }
+    .about-logo { height: 150px; width: auto; align-self: flex-start; }
+    .about-text { margin: 0; font-size: 1.3rem; line-height: 1.65; }
 
     .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); margin-top: 88px; }
     .stat { background: #E57035; color: #fff; min-height: 200px; padding: 24px 16px;
@@ -74,10 +78,10 @@ import { Component } from '@angular/core';
     .stat.reach .stat-label { color: #1a1a1a; font-size: 1.35rem; margin-top: 12px; }
 
     @media (max-width: 768px) {
-      .about-head { gap: 24px; }
       .about-title { font-size: 2rem; }
-      .about-logo { height: 72px; }
       .about-intro { grid-template-columns: 1fr; gap: 24px; }
+      .about-logo { height: 96px; }
+      .about-text { font-size: 1.125rem; }
       .stats { grid-template-columns: 1fr; }
       .stat.reach { margin-left: 0; }
     }
