@@ -24,14 +24,6 @@
       </div>
     </header>
 
-    <figure class="article-lead-image" *ngIf="article()?.leadImage as lead">
-      <img [src]="lead.url" [alt]="lead.alt">
-      <figcaption *ngIf="lead.caption || lead.credit">
-        <span class="media-caption" *ngIf="lead.caption">{{ lead.caption }}</span>
-        <span class="media-credit" *ngIf="lead.credit">{{ lead.credit }}</span>
-      </figcaption>
-    </figure>
-
     <div class="article-content">
       <div *ngFor="let block of article()?.blocks">
 

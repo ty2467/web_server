@@ -256,6 +256,7 @@ public class SpringBootTutorialApplication {
     public ResponseEntity<ArticleRequest> getArticleDetail(@PathVariable Long id) {
         String sql = "SELECT * FROM editors_db WHERE id = ?";
         try {
+            //n
             ArticleRequest article = jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
                 ArticleRequest req = new ArticleRequest();
                 req.setId(rs.getLong("id"));
@@ -268,7 +269,7 @@ public class SpringBootTutorialApplication {
                 req.setLead_image_url(rs.getString("lead_image_url"));
                 req.setLead_image_caption(rs.getString("lead_image_caption"));
                 req.setView_count(rs.getInt("view_count"));
-
+                //null check because intra_section_zone can be null
                 int intraZone = rs.getInt("intra_section_zone");
                 req.setIntra_section_zone(rs.wasNull() ? null : intraZone);
 
@@ -290,7 +291,7 @@ public class SpringBootTutorialApplication {
                     req.setContent_blocks(new ArrayList<>());
                 }
 
-                return req;
+                return req; //i
             }, id);
 
             return ResponseEntity.ok(article);
