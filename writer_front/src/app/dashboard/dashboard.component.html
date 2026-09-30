@@ -1,5 +1,5 @@
 <div class="dashboard-wrapper">
-  <div class="dashboard-container">
+  <div class="dashboard-container" [class.blurred]="pendingDelete()">
     <div class="header-row">
       <div class="title-group">
         <h3>Editorial Data Stream</h3>
@@ -13,9 +13,38 @@
           (click)="issueBulkDeletion()">
           Delete Selected ({{ selectedIds().size }})
         </button>
-        <span class="badge" *ngIf="!isLoading()">{{ articles().length }} Entries</span>
+        <span class="badge" *ngIf="!isLoading()">{{ filteredArticles().length }} / {{ articles().length }} Entries</span>
       </div>
 
+    </div>
+
+    <div class="filter-bar">
+      <label class="filter-field">
+        ID from
+        <input #minInput type="number" [value]="idMin() ?? ''"
+               (input)="setIdBound('min', minInput.value)" />
+      </label>
+      <label class="filter-field">
+        ID to
+        <input #maxInput type="number" [value]="idMax() ?? ''"
+               (input)="setIdBound('max', maxInput.value)" />
+      </label>
+      <label class="filter-field">
+        Category
+        <select #catSel [value]="categoryFilter()"
+                (change)="categoryFilter.set(catSel.value)">
+          <option value="">All</option>
+          @for (c of categories(); track c) {
+            <option [value]="c">{{ c }}</option>
+          }
+        </select>
+      </label>
+      <label class="filter-field">
+        Month
+        <input #monthInput type="month" [value]="monthFilter()"
+               (input)="monthFilter.set(monthInput.value)" />
+      </label>
+      <button class="clear-btn" (click)="clearFilters()">Clear</button>
     </div>
 
     <div class="table-responsive">
@@ -25,18 +54,20 @@
           <th class="checkbox-col">Select</th>
           <th>ID</th>
           <th>Title</th>
+          <th>Category</th>
           <th>Publish Date & Time</th>
+          <th class="action-col"></th>
         </tr>
         </thead>
         <tbody>
           @if (isLoading()) {
             <tr>
-              <td colspan="4" class="status-cell">
+              <td colspan="6" class="status-cell">
                 <div class="skeleton-loader">Synchronizing with Spring Boot...</div>
               </td>
             </tr>
           } @else {
-            @for (item of articles(); track item.id) {
+	    @for (item of pagedArticles(); track item.id) {
 <!--              <tr class="data-row" [class.selected]="selectedIds().has(item.id)">-->
 <!--                <td class="checkbox-col">-->
 <!--                  &lt;!&ndash; this section: toggleSelection gets passed id.&ndash;&gt;-->
@@ -47,23 +78,29 @@
 <!--                    (change)="toggleSelection(item.id)"-->
 <!--                  />-->
 
-<tr
-    class="data-row"
-    [class.selected]="selectedIds().has(item.id)"
-    (click)="goToFullEdit(item.id)"
-    style="cursor: pointer;"> <td class="checkbox-col" (click)="$event.stopPropagation()"> <input
-        type="checkbox"
-        [checked]="selectedIds().has(item.id)"
-        (change)="toggleSelection(item.id)"
-      />
+              <tr
+                class="data-row"
+                [class.selected]="selectedIds().has(item.id)"
+                (click)="goToFullEdit(item.id)"
+                style="cursor: pointer;">
+                <td class="checkbox-col" (click)="$event.stopPropagation()">
+                  <input
+                    type="checkbox"
+                    [checked]="selectedIds().has(item.id)"
+                    (change)="toggleSelection(item.id)"
+                  />
                 </td>
                 <td class="id-col">#{{ item.id }}</td>
                 <td class="title-col"><strong>{{ item.title }}</strong></td>
+                <td class="category-col">{{ item.category }}</td>
                 <td class="date-col">{{ item.date_time | date: 'MMM d, y, h:mm a' }}</td>
+		<td class="action-col" (click)="$event.stopPropagation()">
+  		  <button class="row-delete-btn" (click)="askDelete(item)">Delete</button>
+		</td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="4" class="status-cell">No editorial records found.</td>
+                <td colspan="6" class="status-cell">No editorial records found.</td>
               </tr>
             }
           }
@@ -71,10 +108,42 @@
       </table>
     </div>
 
-
+    @if (!isLoading() && filteredArticles().length > 0) {
+      <div class="pager">
+        <button class="pager-btn" [disabled]="currentPage() === 0" (click)="goToPage(currentPage() - 1)">Prev</button>
+        @for (p of pageButtons(); track $index) {
+          @if (p === null) {
+            <span class="pager-gap">…</span>
+          } @else {
+            <button class="pager-btn" [class.active]="p === currentPage()" (click)="goToPage(p)">{{ p + 1 }}</button>
+          }
+        }
+        <button class="pager-btn" [disabled]="currentPage() === totalPages() - 1" (click)="goToPage(currentPage() + 1)">Next</button>
+        <label class="pager-size">
+          Per page
+          <select #sizeSel [value]="pageSize()" (change)="pageSize.set(+sizeSel.value)">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+      </div>
+    }
 
     <p *ngIf="errorMessage()" class="status-msg error">{{ errorMessage() }}</p>
   </div>
-
+  @if (pendingDelete(); as target) {
+    <div class="focus-overlay" (click)="cancelDelete()">
+      <div class="focus-card" (click)="$event.stopPropagation()">
+        <h4 class="confirm-title">Delete this article?</h4>
+        <p class="confirm-target">#{{ target.id }} — {{ target.title }}</p>
+        <p class="confirm-warn">This can't be undone.</p>
+        <div class="confirm-actions">
+          <button class="push-btn" (click)="cancelDelete()">Cancel</button>
+          <button class="delete-btn-main" (click)="confirmDelete()">Delete</button>
+        </div>
+      </div>
+    </div>
+  }
 
 </div>

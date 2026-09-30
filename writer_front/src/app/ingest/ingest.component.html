@@ -218,7 +218,7 @@
           <button type="button" (click)="insertBlock('video', lastBlockId)">🎥 Video</button>
         </div>
         <button type="submit" class="submit-btn" [class.success-state]="isSuccess"
-                [disabled]="metaForm.invalid || isSuccess || isAnyBlockUploading">
+		[disabled]="metaForm.invalid || isSubmitting || isSuccess || isAnyBlockUploading"> 
           <ng-container *ngIf="!isSuccess">
             {{ isAnyBlockUploading ? 'Uploading Media...' : (editingId ? 'Update Article' : 'Publish to Database') }}
           </ng-container>

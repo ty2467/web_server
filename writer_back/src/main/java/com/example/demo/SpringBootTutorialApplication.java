@@ -237,19 +237,19 @@ public class SpringBootTutorialApplication {
      * * -> pull or delete specific data.
      */
     // --- Handler for Angular Dashboard (untouched — only the editor_db -> editors_db typo fix) ---
-    @GetMapping("/api/articles/summary")
+        @GetMapping("/api/articles/summary")
     public List<EditorialItemDTO> getArticleSummaries() {
-        String sql = "SELECT id, title, date_time FROM editors_db ORDER BY date_time DESC";
+        String sql = "SELECT id, title, category, date_time FROM editors_db ORDER BY date_time DESC";
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             EditorialItemDTO item = new EditorialItemDTO();
             item.setId(rs.getLong("id"));
             item.setTitle(rs.getString("title"));
+            item.setCategory(rs.getString("category"));
             // Converting SQL Timestamp to String for the TS interface
             item.setDate_time(rs.getTimestamp("date_time").toString());
             return item;
         });
     }
-
 
     // -- handler for article detail --
     @GetMapping("/api/articles/{id}")
@@ -661,6 +661,7 @@ class ContentBlock {
 class EditorialItemDTO {
     private Long id;
     private String title;
+    private String category;
     private String date_time;
 
     // Getters and Setters
@@ -670,9 +671,14 @@ class EditorialItemDTO {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
     public String getDate_time() { return date_time; }
     public void setDate_time(String date_time) { this.date_time = date_time; }
 }
+
+
 
 @Configuration
 class SecurityConfig {

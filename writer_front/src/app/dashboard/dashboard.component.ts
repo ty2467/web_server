@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 /** use formbuilder for update. duh*/
@@ -10,6 +10,7 @@ import {Router} from '@angular/router';
 interface EditorialItem {
   id: number;
   title: string;
+  category: string;
   date_time: string;
 }
 
@@ -54,6 +55,78 @@ export class DashboardComponent implements OnInit {
   private readonly API_URL2 = this.baseURL +"/delete"; ///api/delete';
   /** modify dashboard objects */
   readonly selectedIds = signal<Set<number>>(new Set());
+  readonly pendingDelete = signal<EditorialItem | null>(null);
+
+
+  /** filters */
+  readonly idMin = signal<number | null>(null);
+  readonly idMax = signal<number | null>(null);
+  readonly categoryFilter = signal<string>('');
+  readonly monthFilter = signal<string>(''); // 'YYYY-MM', what <input type="month"> emits
+
+  readonly categories = computed(() =>
+    [...new Set(this.articles().map(a => a.category).filter(Boolean))].sort()
+  );
+
+  readonly filteredArticles = computed(() => {
+    const min = this.idMin();
+    const max = this.idMax();
+    const cat = this.categoryFilter();
+    const month = this.monthFilter();
+
+    return this.articles().filter(a => {
+      if (min !== null && a.id < min) return false;
+      if (max !== null && a.id > max) return false;
+      if (cat && a.category !== cat) return false;
+      if (month && this.toMonthKey(a.date_time) !== month) return false;
+      return true;
+    });
+  });
+
+    /** pagination — sits on top of filteredArticles */
+  readonly pageSize = signal<number>(25);
+
+  // the page index is tagged with the filter state it was chosen under;
+  // when a filter or the page size changes, the tag stops matching and it falls back to page 0
+  private readonly pageKey = computed(() =>
+    `${this.idMin()}|${this.idMax()}|${this.categoryFilter()}|${this.monthFilter()}|${this.pageSize()}`
+  );
+  private readonly pageState = signal<{ key: string; index: number }>({ key: '', index: 0 });
+
+  readonly totalPages = computed(() =>
+    Math.max(1, Math.ceil(this.filteredArticles().length / this.pageSize()))
+  );
+
+  readonly currentPage = computed(() => {
+    const s = this.pageState();
+    const idx = s.key === this.pageKey() ? s.index : 0;
+    return Math.min(idx, this.totalPages() - 1); // deletes can empty the last page
+  });
+
+  readonly pagedArticles = computed(() => {
+    const start = this.currentPage() * this.pageSize();
+    return this.filteredArticles().slice(start, start + this.pageSize());
+  });
+
+
+  readonly pageButtons = computed<(number | null)[]>(() => {
+    const total = this.totalPages();
+    const cur = this.currentPage() + 1; // 1-based for the math
+    const pages = new Set<number>([1, total]);
+
+    for (let p = cur - 2; p <= cur + 2; p++) pages.add(p);
+    const lo = Math.ceil((cur - 20) / 5) * 5;
+    for (let p = lo; p <= cur + 20; p += 5) pages.add(p);
+
+    const sorted = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+
+    const out: (number | null)[] = [];
+    sorted.forEach((p, i) => {
+      if (i > 0 && p - sorted[i - 1] > 5) out.push(null);
+      out.push(p - 1); // back to 0-based index
+    });
+    return out;
+  });
 
 
   private fb = inject(FormBuilder); // Restore injection
@@ -88,6 +161,32 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+
+  /**
+   * @filters
+   */
+  private toMonthKey(dateTime: string): string {
+    const d = new Date(dateTime);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  setIdBound(which: 'min' | 'max', raw: string): void {
+    const n = raw.trim() === '' ? null : Number(raw);
+    const val = Number.isFinite(n) ? n : null;
+    (which === 'min' ? this.idMin : this.idMax).set(val);
+  }
+
+  clearFilters(): void {
+    this.idMin.set(null);
+    this.idMax.set(null);
+    this.categoryFilter.set('');
+    this.monthFilter.set('');
+  }
+
+  goToPage(index: number): void {
+    const clamped = Math.max(0, Math.min(index, this.totalPages() - 1));
+    this.pageState.set({ key: this.pageKey(), index: clamped });
+  }
   /**
    * @deletion
    * @param id
@@ -121,12 +220,34 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  askDelete(item: EditorialItem): void {
+    this.pendingDelete.set(item);
+  }
 
+  cancelDelete(): void {
+    this.pendingDelete.set(null);
+  }
 
+  confirmDelete(): void {
+    const target = this.pendingDelete();
+    if (!target) return;
 
-
-
-
-
+    // same endpoint as bulk, one-element array
+    this.http.request('delete', this.API_URL2, { body: [target.id] }).subscribe({
+      next: () => {
+        this.articles.update(items => items.filter(a => a.id !== target.id));
+        // drop it from the bulk selection too, if it was checked
+        const sel = new Set(this.selectedIds());
+        sel.delete(target.id);
+        this.selectedIds.set(sel);
+        this.pendingDelete.set(null);
+      },
+      error: (err) => {
+        console.error('Deletion failed', err);
+        this.errorMessage.set('Deletion failed on the backend.');
+        this.pendingDelete.set(null);
+      }
+    });
+  }
 
 }

@@ -48,6 +48,7 @@ export class IngestComponent implements OnInit, OnDestroy {
   metaForm!: FormGroup;
   status = '';
   isSuccess = false;
+  isSubmitting = false;
   editingId: string | null = null;
 
   // ---- Canonical content model + its two localId-keyed projections ----
@@ -730,6 +731,8 @@ export class IngestComponent implements OnInit, OnDestroy {
 
     submit() {
       if (!this.metaForm.valid) return;
+      this.isSubmitting = true;
+
 
       // getRawValue, not value: intra_section_zone is DISABLED whenever no
       // front is picked, and value silently omits disabled controls — the
@@ -751,7 +754,8 @@ export class IngestComponent implements OnInit, OnDestroy {
           // Hold the ✓ long enough to be seen, then clear for the next article.
           setTimeout(() => {
             this.isSuccess = false;
-            if (this.editingId) {
+	    this.isSubmitting = false;		
+	    if (this.editingId) {
               // Dropping ?edit fires the queryParams subscription, which
               // already clears blocks/meta and nulls editingId.
               this.router.navigate([], { relativeTo: this.route, queryParams: {} });
@@ -761,7 +765,10 @@ export class IngestComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges();
           }, 1500);
         },
-        error: () => { this.status = 'Submission failed.'; }
+        error: () => { 
+		this.status = 'Submission failed.';
+		this.isSubmitting = false;
+       	}
       });
     }
 
