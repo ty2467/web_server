@@ -113,6 +113,7 @@ main {
 }
 
 /* Footer: Stacked for mobile */
+/* Footer: links spread horizontally across the full width */
 .site-footer {
   background-color: #ee812b;
   color: white;
@@ -122,9 +123,6 @@ main {
 }
 
 .footer-columns {
-  display: grid;
-  grid-template-columns: 1fr; /* Single column on mobile */
-  gap: 30px;
   max-width: 1200px;
   margin: 0 auto 20px auto;
 }
@@ -134,16 +132,30 @@ main {
   margin-bottom: 10px;
   text-transform: uppercase;
   font-weight: bold;
+  text-align: center;
 }
 
 .footer-column ul {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 10px 20px;
 }
 
-.footer-column li { margin-bottom: 6px; }
-.footer-column a { color: white; text-decoration: none; font-size: 12px; }
+.footer-column li { margin: 0; }
+
+.footer-column a {
+  display: block;
+  padding: 10px 16px;
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+}
+
 .footer-column a:hover { text-decoration: underline; }
 
 .footer-bottom {
@@ -152,59 +164,55 @@ main {
   color: rgba(255, 255, 255, 0.8);
 }
 
-
 /* =========================================
    2. TABLET BREAKPOINT (>= 768px)
    ========================================= */
-@media (min-width: 768px) {
-  .container {
-    padding: 0 30px;
-  }
+   @media (min-width: 768px) {
+ .container {
+   padding: 0 30px;
+ }
 
-  .menu-bar {
-    margin: 0 -30px;
-  }
+ .menu-bar {
+   margin: 0 -30px;
+ }
 
-  .menu-bar ul {
-    padding: 0 50px;
-    min-width: min(100%, 1500px);
-    max-width: 1500px;
-  }
+ .menu-bar ul {
+   padding: 0 50px;
+   min-width: min(100%, 1500px);
+   max-width: 1500px;
+ }
 
-  .logo-image {
-    width: 280px;
-  }
+ .logo-image {
+   width: 280px;
+ }
 
-  .footer-columns {
-    grid-template-columns: repeat(2, 1fr); /* 2x2 grid for footer */
-  }
+ /* .footer-columns {
+   grid-template-columns: repeat(2, 1fr);
+ } */
 }
 
-/* =========================================
-   3. DESKTOP / LAPTOP BREAKPOINT (>= 1100px)
-   ========================================= */
 @media (min-width: 1100px) {
-  .logo-bar {
-    padding: 20px 0;
-  }
+ .logo-bar {
+   padding: 20px 0;
+ }
 
-  .logo-image {
-    width: 360px; /* Full size logo */
-    margin-right: 15px;
-  }
+ .logo-image {
+   width: 360px; /* Full size logo */
+   margin-right: 15px;
+ }
 
-  .menu-bar li {
-    padding: 15px 20px; /* Larger hit areas */
-    font-size: 16px;
-  }
+ .menu-bar li {
+   padding: 15px 20px; /* Larger hit areas */
+   font-size: 16px;
+ }
 
-  .ticker-item {
-    padding: 0 35px;
-  }
+ .ticker-item {
+   padding: 0 35px;
+ }
 
-  .footer-columns {
-    grid-template-columns: repeat(4, 1fr); /* Full horizontal spread */
-  }
+ /* .footer-columns {
+   grid-template-columns: repeat(4, 1fr);
+ } */
 }
 
 /* =========================================
