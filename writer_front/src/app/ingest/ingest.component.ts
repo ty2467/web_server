@@ -5,7 +5,7 @@ import {
   AbstractControl, ValidationErrors
 } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute, Params } from '@angular/router';
+import { ActivatedRoute, Params, Router } from '@angular/router';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
 
 import { TiptapEditorDirective } from 'ngx-tiptap';
@@ -145,6 +145,7 @@ export class IngestComponent implements OnInit, OnDestroy {
 
 
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   constructor(
     private http: HttpClient,
@@ -727,30 +728,42 @@ export class IngestComponent implements OnInit, OnDestroy {
     });
   }
 
-  submit() {
-    if (!this.metaForm.valid) return;
+    submit() {
+      if (!this.metaForm.valid) return;
 
-    // getRawValue, not value: intra_section_zone is DISABLED whenever no
-    // front is picked, and value silently omits disabled controls — the
-    // field would vanish from the payload rather than arriving null.
-    // front/in_column are UI-side only and must not reach the wire.
-    const { front, in_column, ...meta } = this.metaForm.getRawValue();
+      // getRawValue, not value: intra_section_zone is DISABLED whenever no
+      // front is picked, and value silently omits disabled controls — the
+      // field would vanish from the payload rather than arriving null.
+      // front/in_column are UI-side only and must not reach the wire.
+      const { front, in_column, ...meta } = this.metaForm.getRawValue();
 
-    const payload = {
-      ...meta,
-      section_zone: this.buildSectionZone(),
-      content_blocks: this.blocks.map(blockToDto)
-    };
+      const payload = {
+        ...meta,
+        section_zone: this.buildSectionZone(),
+        content_blocks: this.blocks.map(blockToDto)
+      };
 
-    this.http.post(this.API_URL, payload).subscribe({
-      next: () => {
-        this.status = 'Success!';
-        this.isSuccess = true;
-        if (!this.editingId) this.resetForm();
-      },
-      error: () => { this.status = 'Submission failed.'; }
-    });
-  }
+      this.http.post(this.API_URL, payload).subscribe({
+        next: () => {
+          this.status = 'Success!';
+          this.isSuccess = true;
+
+          // Hold the ✓ long enough to be seen, then clear for the next article.
+          setTimeout(() => {
+            this.isSuccess = false;
+            if (this.editingId) {
+              // Dropping ?edit fires the queryParams subscription, which
+              // already clears blocks/meta and nulls editingId.
+              this.router.navigate([], { relativeTo: this.route, queryParams: {} });
+            } else {
+              this.resetForm();
+            }
+            this.cdr.detectChanges();
+          }, 1500);
+        },
+        error: () => { this.status = 'Submission failed.'; }
+      });
+    }
 
   private resetForm() {
     this.clearAllBlocks();
