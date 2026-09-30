@@ -60,6 +60,7 @@
               <option [ngValue]="null">— 选择 —</option>
               <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>
             </select>
+            <div *ngIf="mainCenterReserved" class="zone-notice">只有美洲頭條可以使用主版中心，详情请参考Manual</div>
           </div>
         </div>
 

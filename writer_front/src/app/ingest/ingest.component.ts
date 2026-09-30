@@ -81,11 +81,19 @@ export class IngestComponent implements OnInit, OnDestroy {
    * The writer picks a category; the placement follows and is not editable.
    */
    private readonly categoryZoneLock: Record<string, { front: ZoneFront; intra: number }> = {
-     '美洲頭條':   { front: 'main',       intra: 0 },  // 主板中心
      '美洲台探訪': { front: 'super_main', intra: 0 },  // 高光專區中心
      '出海專區':   { front: 'super_main', intra: 1 },  // 高光專區側
      '商務合作':   { front: 'super_main', intra: 2 }   // 高光專區底
    };
+
+  /** 主板中心 is offered to this category alone. */
+  private readonly MAIN_CENTER_CATEGORY = '美洲頭條';
+
+  /** 主板 is picked but 中心 is withheld — drives the template notice. */
+  get mainCenterReserved(): boolean {
+    const v = this.metaForm?.getRawValue();
+    return v?.front === 'main' && v?.category !== this.MAIN_CENTER_CATEGORY;
+  }
 
   get canUseSuperMain(): boolean {
     return this.lockedZone?.front === 'super_main';
@@ -192,11 +200,17 @@ export class IngestComponent implements OnInit, OnDestroy {
 
    private readonly BOTTOM_STRIP = ['天天話題', '美國觀察', '中美關係'];
 
+  /**
+   * 主板 withholds 中心 from every category but 美洲頭條. A 中心 carried in
+   * from another 位置, or left behind by a category change, is not in this
+   * list, so syncIntraZoneValidity()'s stillValid check drops it.
+   */
   get intraSectionZoneOptions(): { value: number; label: string }[] {
     const front = this.metaForm?.get('front')?.value;
     const cat = this.metaForm?.get('category')?.value;
     if (front === 'main') {
-      return this.BOTTOM_STRIP.includes(cat) ? this.intraFull : this.intraNoBottom;
+      const opts = this.BOTTOM_STRIP.includes(cat) ? this.intraFull : this.intraNoBottom;
+      return cat === this.MAIN_CENTER_CATEGORY ? opts : opts.filter(o => o.value !== 0);
     }
     if (front === 'super_main' || front === 'sub_main') return this.intraFull;
     if (front === 'tertiary') return this.intraNoBottom;
