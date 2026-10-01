@@ -24,6 +24,13 @@ export interface Article {
   // 排列 within the chosen front. 0 = 中心, 1 = 侧, 2 = 底.
   // Null/absent for 栏目-only articles, which have no slot.
   intra_section_zone?: number | null;
+
+  // Placement on the article's own category page. SET('main','column'),
+  // same comma-joined contract as section_zone — membership only, never ===.
+  category_position?: string | null;
+
+  // 排列 within the category page's main block. 0 = 中心, 1 = 侧. No 底.
+  category_intra?: number | null;
 }
 
 export const SLOT = { CENTER: 0, SIDE: 1, BOTTOM: 2 } as const;
@@ -66,4 +73,10 @@ export function rendition(url: string | undefined, tier: 'big' | 'small'): strin
   const dot = url.lastIndexOf('.');
   const stem = dot > slash ? url.slice(0, dot) : url;
   return `${stem}_${tier}.webp`;
+}
+
+export function isOnCategoryMain(art: Article): boolean {
+  return (art.category_position ?? '')
+    .split(',').map(s => s.trim())
+    .includes('main');
 }

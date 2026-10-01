@@ -26,14 +26,6 @@
     </div>
   </section>
 
-  <section class="secondary-grid" *ngIf="majorFront?.sections?.length">
-    <div class="secondary-column" *ngFor="let sec of majorFront!.sections" [routerLink]="['/article', sec.slug]">
-      <div class="secondary-card">
-        <img *ngIf="sec.image" [src]="sec.image" class="secondary-image">
-        <h3>{{ sec.title }}</h3>
-      </div>
-    </div>
-  </section>
 
   <hr class="section-divider" *ngIf="rows.length">
 

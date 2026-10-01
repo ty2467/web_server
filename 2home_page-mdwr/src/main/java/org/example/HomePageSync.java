@@ -200,6 +200,7 @@ public class HomePageSync {
         return values;
     }
 
+
     // ------------------------------------------------------------------
     //  one row, plain upsert — no derived fields, no diffing
     // ------------------------------------------------------------------
@@ -224,12 +225,14 @@ public class HomePageSync {
             // changed underneath it.
             try (PreparedStatement ps = db.prepareStatement(
                     "INSERT INTO home_page " +
-                            "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, cover_media_url, slug) " +
-                            "VALUES (?,?,?,?,?,?,?,?,?,?) " +
+                            "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, " +
+                            " category_position, category_intra, cover_media_url, slug) " +
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) " +
                             "ON DUPLICATE KEY UPDATE " +
                             "  title=VALUES(title), dek=VALUES(dek), author=VALUES(author), " +
                             "  category=VALUES(category), date_time=VALUES(date_time), " +
                             "  section_zone=VALUES(section_zone), intra_section_zone=VALUES(intra_section_zone), " +
+                            "  category_position=VALUES(category_position), category_intra=VALUES(category_intra), " +
                             "  cover_media_url=VALUES(cover_media_url)")) {
                 ps.setLong(1, src.id);
                 ps.setString(2, src.title);
@@ -240,12 +243,15 @@ public class HomePageSync {
                 ps.setString(7, src.sectionZone);
                 if (src.intraSectionZone != null) ps.setInt(8, src.intraSectionZone);
                 else ps.setNull(8, java.sql.Types.TINYINT);
-                ps.setString(9, src.leadImageUrl);  // -> cover_media_url
-                ps.setString(10, slug);
+                ps.setString(9, src.categoryPosition);
+                if (src.categoryIntra != null) ps.setInt(10, src.categoryIntra);
+                else ps.setNull(10, java.sql.Types.TINYINT);
+                ps.setString(11, src.leadImageUrl);  // -> cover_media_url
+                ps.setString(12, slug);
                 ps.executeUpdate();
             }
-	    RenditionHook.enqueue(src.id, src.leadImageUrl);	
-	}
+            RenditionHook.enqueue(src.id, src.leadImageUrl);
+        }
     }
 
     //---deletion method
@@ -267,26 +273,26 @@ public class HomePageSync {
     private Row fetchRow(Connection db, long id) throws Exception {
         try (PreparedStatement ps = db.prepareStatement(
                 "SELECT id, title, summary, author, category, date_time, " +
-                        "section_zone, intra_section_zone, lead_image_url " +
+                        "section_zone, intra_section_zone, category_position, category_intra, lead_image_url " +
                         "FROM editors_db WHERE id = ?")) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
                 Integer intraZone = (Integer) rs.getObject("intra_section_zone");
-                // section_zone is a SET column on both sides — getString gives
-                // the comma form ("sub_main,column", always in SET-definition
-                // order) and setString takes it back unchanged. Nothing here
-                // parses it; the only consumer that needs members individually
-                // is the homepage read query, via FIND_IN_SET.
+                Integer catIntra = (Integer) rs.getObject("category_intra");
+                // section_zone / category_position are SET columns on both
+                // sides — getString gives the comma form, setString takes it
+                // back unchanged. Nothing here parses them.
                 return new Row(
                         rs.getLong("id"), rs.getString("title"), rs.getString("summary"),
                         rs.getString("author"), rs.getString("category"), rs.getTimestamp("date_time"),
-                        rs.getString("section_zone"), intraZone, rs.getString("lead_image_url")
+                        rs.getString("section_zone"), intraZone,
+                        rs.getString("category_position"), catIntra,
+                        rs.getString("lead_image_url")
                 );
             }
         }
     }
-
     // Byte-for-byte identical to EditorsDisplaySync's buildSlug()/slugify()
     // — see that file's comment on why this is deterministic and safely
     // duplicated rather than shared.
@@ -307,6 +313,7 @@ public class HomePageSync {
 
     private record Row(
             long id, String title, String summary, String author, String category,
-            Timestamp dateTime, String sectionZone, Integer intraSectionZone, String leadImageUrl
+            Timestamp dateTime, String sectionZone, Integer intraSectionZone,
+            String categoryPosition, Integer categoryIntra, String leadImageUrl
     ) {}
 }

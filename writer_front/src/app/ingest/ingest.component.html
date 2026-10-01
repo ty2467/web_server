@@ -61,6 +61,28 @@
               <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>
             </select>
             <div *ngIf="mainCenterReserved" class="zone-notice">只有美洲頭條可以使用主版中心，详情请参考Manual</div>
+
+            <div class="meta-field zone-field">
+              <label>分类页位置</label>
+              <div class="zone-picker">
+                <div class="zone-group">
+                  <label class="zone-opt">
+                    <input type="checkbox" formControlName="cat_main"> 主板
+                  </label>
+                  <label class="zone-opt">
+                    <input type="checkbox" formControlName="cat_column"> 栏目
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="meta-field">
+              <label>分类页排列<span class="required-mark" *ngIf="!categoryIntraDisabled">*</span></label>
+              <select formControlName="category_intra">
+                <option [ngValue]="null">— 选择 —</option>
+                <option *ngFor="let opt of categoryIntraOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -218,7 +240,7 @@
           <button type="button" (click)="insertBlock('video', lastBlockId)">🎥 Video</button>
         </div>
         <button type="submit" class="submit-btn" [class.success-state]="isSuccess"
-		[disabled]="metaForm.invalid || isSubmitting || isSuccess || isAnyBlockUploading"> 
+		[disabled]="metaForm.invalid || isSubmitting || isSuccess || isAnyBlockUploading">
           <ng-container *ngIf="!isSuccess">
             {{ isAnyBlockUploading ? 'Uploading Media...' : (editingId ? 'Update Article' : 'Publish to Database') }}
           </ng-container>

@@ -154,47 +154,52 @@ export class IngestComponent implements OnInit, OnDestroy {
     private mediaUpload: MediaUploadService
   ) {}
 
-  ngOnInit() {
-    // Only scalar, fixed-shape fields live in Reactive F ms. content_blocks
-    // is dynamic and index-sensitive in a way FormArray actively fights —
-    // it stays a plain array, assembled into the payload at submit time.
-    this.metaForm = new FormGroup({
-      id: new FormControl<number | null>(null),
-      title: new FormControl('', [Validators.required]),
-      summary: new FormControl(''),
-      author: new FormControl(''),
-      category: new FormControl('', [Validators.required]),
-      date_time: new FormControl(this.getCurrentDateTime()),
-      front: new FormControl<ZoneFront | null>(null),
-      in_column: new FormControl(false),
-      intra_section_zone: new FormControl<number | null>(null, [Validators.min(0), Validators.max(255)]),
-      lead_image_url: new FormControl(''),
-      lead_image_caption: new FormControl(''),
-      view_count: new FormControl<number>(0, [Validators.min(0), Validators.max(4294967295)]),
-    }, { validators: zonePicked });
+   ngOnInit() {
+     // Only scalar, fixed-shape fields live in Reactive F ms. content_blocks
+     // is dynamic and index-sensitive in a way FormArray actively fights —
+     // it stays a plain array, assembled into the payload at submit time.
+     this.metaForm = new FormGroup({
+       id: new FormControl<number | null>(null),
+       title: new FormControl('', [Validators.required]),
+       summary: new FormControl(''),
+       author: new FormControl(''),
+       category: new FormControl('', [Validators.required]),
+       date_time: new FormControl(this.getCurrentDateTime()),
+       front: new FormControl<ZoneFront | null>(null),
+       in_column: new FormControl(false),
+       intra_section_zone: new FormControl<number | null>(null, [Validators.min(0), Validators.max(255)]),
+       cat_main: new FormControl(false),
+       cat_column: new FormControl(false),
+       category_intra: new FormControl<number | null>(null),
+       lead_image_url: new FormControl(''),
+       lead_image_caption: new FormControl(''),
+       view_count: new FormControl<number>(0, [Validators.min(0), Validators.max(4294967295)]),
+     }, { validators: zonePicked });
 
-    // ONE rule, ONE place. Previously this subscription hand-inlined half of
-    // syncIntraZoneValidity() while the method itself was never called from
-    // anywhere — so the required-validator half of the rule never ran and
-    // 排列 could be left blank on a front. The subscription now delegates.
-    this.metaForm.get('front')!.valueChanges.subscribe(() => this.syncIntraZoneValidity());
-    this.metaForm.get('category')!.valueChanges.subscribe(() => this.applyCategoryLock());
-    this.applyCategoryLock();
+     // ONE rule, ONE place. Previously this subscription hand-inlined half of
+     // syncIntraZoneValidity() while the method itself was never called from
+     // anywhere — so the required-validator half of the rule never ran and
+     // 排列 could be left blank on a front. The subscription now delegates.
+     this.metaForm.get('front')!.valueChanges.subscribe(() => this.syncIntraZoneValidity());
+     this.metaForm.get('category')!.valueChanges.subscribe(() => this.applyCategoryLock());
+     this.metaForm.get('cat_main')!.valueChanges.subscribe(() => this.syncCategoryIntraValidity());
+     this.applyCategoryLock();
+     this.syncCategoryIntraValidity();
 
-    this.route.queryParams.subscribe((params: Params) => {
-      this.clearAllBlocks();
-      const idFromUrl = params['edit'];
-      if (idFromUrl) {
-        this.editingId = idFromUrl;
-        this.loadArticleForEdit(idFromUrl);
-      } else {
-        this.editingId = null;
-        this.resetMetaForm();
-        this.leadImagePreview = null;
-        this.insertBlock('paragraph', null);
-      }
-    });
-  }
+     this.route.queryParams.subscribe((params: Params) => {
+       this.clearAllBlocks();
+       const idFromUrl = params['edit'];
+       if (idFromUrl) {
+         this.editingId = idFromUrl;
+         this.loadArticleForEdit(idFromUrl);
+       } else {
+         this.editingId = null;
+         this.resetMetaForm();
+         this.leadImagePreview = null;
+         this.insertBlock('paragraph', null);
+       }
+     });
+   }
 
   ngOnDestroy() {
     this.editors.forEach(ed => ed.destroy());
@@ -292,6 +297,48 @@ export class IngestComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ===========================================================================
+  // 分类页位置 (category_position) / 分类页排列 (category_intra)
+  //
+  // category_position is SET('main','column') — both checkboxes may be on at
+  // once. category_intra is 0 = 中心, 1 = 侧; no 底 on category pages. It is
+  // required exactly when 'main' is checked, and disabled otherwise.
+  // ===========================================================================
+
+  readonly categoryIntraOptions = this.intraNoBottom;
+
+  get categoryIntraDisabled(): boolean {
+    return !this.metaForm?.get('cat_main')?.value;
+  }
+
+  private syncCategoryIntraValidity() {
+    const onMain = this.metaForm.get('cat_main')!.value;
+    const ctrl = this.metaForm.get('category_intra')!;
+
+    if (!onMain) ctrl.setValue(null, { emitEvent: false });
+    ctrl.setValidators(onMain ? [Validators.required] : []);
+
+    if (onMain) ctrl.enable({ emitEvent: false });
+    else ctrl.disable({ emitEvent: false });
+
+    ctrl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** cat_main + cat_column -> the SET string. Called once, at submit. */
+  private buildCategoryPosition(): string {
+    const v = this.metaForm.getRawValue();
+    return [v.cat_main ? 'main' : null, v.cat_column ? 'column' : null].filter(Boolean).join(',');
+  }
+
+  /** The SET string -> cat_main + cat_column. Called once, on edit load. */
+  private applyCategoryPosition(cp: string | null) {
+    const parts = (cp ?? '').split(',').map(s => s.trim());
+    this.metaForm.patchValue({
+      cat_main: parts.includes('main'),
+      cat_column: parts.includes('column')
+    });
+  }
+
   private resetMetaForm() {
     // Explicit zone defaults: a bare reset() sets in_column to null rather
     // than false, which desyncs the checkbox from the control.
@@ -299,9 +346,12 @@ export class IngestComponent implements OnInit, OnDestroy {
       date_time: this.getCurrentDateTime(),
       front: null,
       in_column: false,
+      cat_main: false,
+      cat_column: false,
       view_count: 0
     });
     this.syncIntraZoneValidity();
+    this.syncCategoryIntraValidity();
   }
 
   /**
@@ -678,27 +728,32 @@ export class IngestComponent implements OnInit, OnDestroy {
   // Load / submit — the only two places that cross the DB boundary.
   // ===========================================================================
 
-  loadArticleForEdit(id: string) {
-    this.http.get<any>(`${this.baseURL}/articles/${id}`).subscribe(data => {
-      // 位置 FIRST: patching front fires syncIntraZoneValidity, which clears
-      // 排列 if it isn't offerable. Loading 排列 before the front would
-      // therefore wipe the value that was just loaded.
-      this.applySectionZone(data.section_zone);
+   loadArticleForEdit(id: string) {
+     this.http.get<any>(`${this.baseURL}/articles/${id}`).subscribe(data => {
+       // 位置 FIRST: patching front fires syncIntraZoneValidity, which clears
+       // 排列 if it isn't offerable. Loading 排列 before the front would
+       // therefore wipe the value that was just loaded. Same for the
+       // category pair.
+       this.applySectionZone(data.section_zone);
+       this.applyCategoryPosition(data.category_position);
 
-      this.metaForm.patchValue({
-        id: data.id,
-        title: data.title,
-        summary: data.summary,
-        author: data.author,
-        category: data.category,
-        date_time: data.date_time,
-        intra_section_zone: data.intra_section_zone,
-        lead_image_url: data.lead_image_url,
-        view_count: data.view_count ?? 0,
-        lead_image_caption: data.lead_image_caption
-      });
-      this.leadImagePreview = data.lead_image_url || null;
-      this.applyCategoryLock();
+       this.metaForm.patchValue({
+         id: data.id,
+         title: data.title,
+         summary: data.summary,
+         author: data.author,
+         category: data.category,
+         date_time: data.date_time,
+         intra_section_zone: data.intra_section_zone,
+         category_intra: data.category_intra,
+         lead_image_url: data.lead_image_url,
+         view_count: data.view_count ?? 0,
+         lead_image_caption: data.lead_image_caption
+       });
+       this.leadImagePreview = data.lead_image_url || null;
+       this.applyCategoryLock();
+
+       // ... unchanged from here
 
       this.clearAllBlocks();
 
@@ -729,48 +784,48 @@ export class IngestComponent implements OnInit, OnDestroy {
     });
   }
 
-    submit() {
-      if (!this.metaForm.valid) return;
-      this.isSubmitting = true;
+   submit() {
+     if (!this.metaForm.valid) return;
+     this.isSubmitting = true;
 
+     // getRawValue, not value: intra_section_zone / category_intra are
+     // DISABLED when their parent placement is off, and value silently
+     // omits disabled controls — they'd vanish rather than arrive null.
+     // front/in_column/cat_main/cat_column are UI-side only.
+     const { front, in_column, cat_main, cat_column, ...meta } = this.metaForm.getRawValue();
 
-      // getRawValue, not value: intra_section_zone is DISABLED whenever no
-      // front is picked, and value silently omits disabled controls — the
-      // field would vanish from the payload rather than arriving null.
-      // front/in_column are UI-side only and must not reach the wire.
-      const { front, in_column, ...meta } = this.metaForm.getRawValue();
+     const payload = {
+       ...meta,
+       section_zone: this.buildSectionZone(),
+       category_position: this.buildCategoryPosition(),
+       content_blocks: this.blocks.map(blockToDto)
+     };
 
-      const payload = {
-        ...meta,
-        section_zone: this.buildSectionZone(),
-        content_blocks: this.blocks.map(blockToDto)
-      };
+     this.http.post(this.API_URL, payload).subscribe({
+       next: () => {
+         this.status = 'Success!';
+         this.isSuccess = true;
 
-      this.http.post(this.API_URL, payload).subscribe({
-        next: () => {
-          this.status = 'Success!';
-          this.isSuccess = true;
-
-          // Hold the ✓ long enough to be seen, then clear for the next article.
-          setTimeout(() => {
-            this.isSuccess = false;
-	    this.isSubmitting = false;		
-	    if (this.editingId) {
-              // Dropping ?edit fires the queryParams subscription, which
-              // already clears blocks/meta and nulls editingId.
-              this.router.navigate([], { relativeTo: this.route, queryParams: {} });
-            } else {
-              this.resetForm();
-            }
-            this.cdr.detectChanges();
-          }, 1500);
-        },
-        error: () => { 
-		this.status = 'Submission failed.';
-		this.isSubmitting = false;
-       	}
-      });
-    }
+         // Hold the ✓ long enough to be seen, then clear for the next article.
+         setTimeout(() => {
+           this.isSuccess = false;
+           this.isSubmitting = false;
+           if (this.editingId) {
+             // Dropping ?edit fires the queryParams subscription, which
+             // already clears blocks/meta and nulls editingId.
+             this.router.navigate([], { relativeTo: this.route, queryParams: {} });
+           } else {
+             this.resetForm();
+           }
+           this.cdr.detectChanges();
+         }, 1500);
+       },
+       error: () => {
+       this.status = 'Submission failed.';
+       this.isSubmitting = false;
+       }
+     });
+   }
 
   private resetForm() {
     this.clearAllBlocks();

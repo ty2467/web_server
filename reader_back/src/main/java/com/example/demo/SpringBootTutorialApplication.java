@@ -166,8 +166,10 @@ class NewsController {
 // A row on a front AND in 栏目 can pass on its 栏目 rank alone, so an
 // over-cap side still reaches the page and the frontend still places it in
 // both. Rare, and dropping a 栏目 article to enforce a front cap is worse.
+
         String sql =
-                "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url " +
+                "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, " +
+                        "       category_position, category_intra, cover_media_url " +
                         "FROM ( " +
                         "  SELECT h.*, " +
                         "         " + FRONT_OF + " AS front, " +
@@ -204,24 +206,23 @@ class NewsController {
                 "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
         data.bannerText = "Latest in " + name;
 
-        // The category page shows ONE front block over an unbounded feed, so
-        // unlike the homepage it doesn't care which front an article is on —
-        // only whether it's on one, and what its 排列 is. Front-placed rows
-        // sort first so the block can be filled from the head of the list;
-        // everything else follows as feed material, newest first.
-        //
-        // Unplaced rows are NOT excluded here: a category page is a category
-        // archive, and an article with no homepage placement still belongs in
-        // its own category's feed.
-        String sql = SELECT_COLS +
-                "FROM home_page " +
-                "WHERE category = ? " +
-                "ORDER BY " +
-                "  CASE WHEN " + ON_ANY_FRONT + " THEN 0 ELSE 1 END, " +
-                "  intra_section_zone IS NULL, " +
-                "  intra_section_zone ASC, " +
-                "  date_time DESC " +
-                "LIMIT 100";
+        // Category placement is its own pair of columns now, independent of
+        // the homepage's section_zone. Rows in the category's main block sort
+        // first (中心 before 侧) so the block fills from the head of the list;
+        // everything else — 'column'-only and unplaced alike — follows as feed
+        // material, newest first. Unplaced rows stay in: this is still the
+        // category's archive.
+        String sql =
+                "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, " +
+                        "       category_position, category_intra, cover_media_url " +
+                        "FROM home_page " +
+                        "WHERE category = ? " +
+                        "ORDER BY " +
+                        "  CASE WHEN FIND_IN_SET('main', category_position) THEN 0 ELSE 1 END, " +
+                        "  category_intra IS NULL, " +
+                        "  category_intra ASC, " +
+                        "  date_time DESC " +
+                        "LIMIT 100";
 
         data.articlePool = queryArticles(sql, name);
 
@@ -242,6 +243,12 @@ class NewsController {
 
             a.intra_section_zone = rs.getObject("intra_section_zone") != null
                     ? rs.getInt("intra_section_zone")
+                    : null;
+
+            a.category_position = rs.getString("category_position");
+
+            a.category_intra = rs.getObject("category_intra") != null
+                    ? rs.getInt("category_intra")
                     : null;
 
             // One cover column, image only. No child-table lookup.

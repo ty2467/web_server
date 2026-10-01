@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;  
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.core.io.InputStreamResource;
@@ -92,9 +92,9 @@ public class SpringBootTutorialApplication {
     @Autowired
     private JsonMapper jsonMapper;
 
-    
+
     @Autowired
-    private EditorsDbEventPublisher eventPublisher; 	
+    private EditorsDbEventPublisher eventPublisher;
     // <input type="datetime-local"> sends/expects exactly "yyyy-MM-ddTHH:mm"
     // (seconds optional) — Java's default ISO_LOCAL_DATE_TIME parser matches
     // that format already, no custom pattern needed for parsing. Formatting
@@ -272,6 +272,9 @@ public class SpringBootTutorialApplication {
                 //null check because intra_section_zone can be null
                 int intraZone = rs.getInt("intra_section_zone");
                 req.setIntra_section_zone(rs.wasNull() ? null : intraZone);
+                req.setCategory_position(rs.getString("category_position"));
+                int catIntra = rs.getInt("category_intra");
+                req.setCategory_intra(rs.wasNull() ? null : catIntra);
 
                 // One JSON column holds the whole block array — deserialize
                 // it once, no per-row mapping and no re-sort needed (the
@@ -433,6 +436,25 @@ public class SpringBootTutorialApplication {
         return keep.isEmpty() ? null : String.join(",", keep);
     }
 
+    private static final java.util.Set<String> CATEGORY_POSITIONS =
+            java.util.Set.of("main", "column");
+
+    /**
+     * Same guard as normalizeSectionZone: one member outside
+     * SET('main','column') makes MariaDB reject the whole value, so unknowns
+     * are dropped. The UI sends '' for "no placement" — stored as NULL, like
+     * section_zone.
+     */
+    private String normalizeCategoryPosition(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        java.util.LinkedHashSet<String> keep = new java.util.LinkedHashSet<>();
+        for (String part : raw.split(",")) {
+            String z = part.trim();
+            if (CATEGORY_POSITIONS.contains(z)) keep.add(z);
+        }
+        return keep.isEmpty() ? null : String.join(",", keep);
+    }
+
     private boolean hasFront(String sectionZone) {
         if (sectionZone == null) return false;
         for (String z : sectionZone.split(",")) if (FRONTS.contains(z.trim())) return true;
@@ -468,22 +490,29 @@ public class SpringBootTutorialApplication {
             article.setIntra_section_zone(null);
         }
 
+        // Category page: 中心/侧 belongs to 'main' only, same rule as above.
+        article.setCategory_position(normalizeCategoryPosition(article.getCategory_position()));
+        if (!hasZone(article.getCategory_position(), "main")) {
+            article.setCategory_intra(null);
+        }
 
         Long toDemote = resolveBottomStrip(article, sectionZone, isUpdate ? articleId : null);
         try {
             if (isUpdate) {
                 String updateSql = "UPDATE editors_db SET title=?, summary=?, author=?, category=?, " +
-                        "date_time=?, section_zone=?, intra_section_zone=?, lead_image_url=?, lead_image_caption=?, " +
-                        "content_blocks=?, view_count=? WHERE id=?";
+                        "date_time=?, section_zone=?, intra_section_zone=?, category_position=?, category_intra=?, " +
+                        "lead_image_url=?, lead_image_caption=?, content_blocks=?, view_count=? WHERE id=?";
                 jdbcTemplate.update(updateSql,
                         article.getTitle(), article.getSummary(), article.getAuthor(), article.getCategory(),
                         parseDateTimeLocal(article.getDate_time()), article.getSection_zone(),
-                        article.getIntra_section_zone(), article.getLead_image_url(), article.getLead_image_caption(),
+                        article.getIntra_section_zone(), article.getCategory_position(), article.getCategory_intra(),
+                        article.getLead_image_url(), article.getLead_image_caption(),
                         blocksJson, viewCount, articleId);
             } else {
                 String insertSql = "INSERT INTO editors_db (title, summary, author, category, " +
-                        "date_time, section_zone, intra_section_zone, lead_image_url, lead_image_caption, " +
-                        "content_blocks, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        "date_time, section_zone, intra_section_zone, category_position, category_intra, " +
+                        "lead_image_url, lead_image_caption, content_blocks, view_count) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 KeyHolder keyHolder = new GeneratedKeyHolder();
                 jdbcTemplate.update(connection -> {
@@ -499,10 +528,16 @@ public class SpringBootTutorialApplication {
                     } else {
                         ps.setNull(7, java.sql.Types.TINYINT);
                     }
-                    ps.setString(8, article.getLead_image_url());
-                    ps.setString(9, article.getLead_image_caption());
-                    ps.setString(10, blocksJson);
-                    ps.setInt(11, viewCount);
+                    ps.setString(8, article.getCategory_position());
+                    if (article.getCategory_intra() != null) {
+                        ps.setInt(9, article.getCategory_intra());
+                    } else {
+                        ps.setNull(9, java.sql.Types.TINYINT);
+                    }
+                    ps.setString(10, article.getLead_image_url());
+                    ps.setString(11, article.getLead_image_caption());
+                    ps.setString(12, blocksJson);
+                    ps.setInt(13, viewCount);
                     return ps;
                 }, keyHolder);
 
@@ -592,6 +627,10 @@ class ArticleRequest {
     private List<ContentBlock> content_blocks;
     private Integer view_count;
 
+    private String category_position;
+    private Integer category_intra;
+
+
     // Getters and Setters
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -619,6 +658,11 @@ class ArticleRequest {
     public void setId(Long id) { this.id = id; }
     public Integer getView_count() { return view_count; }
     public void setView_count(Integer view_count) { this.view_count = view_count; }
+    public String getCategory_position() { return category_position; }
+    public void setCategory_position(String category_position) { this.category_position = category_position; }
+    public Integer getCategory_intra() { return category_intra; }
+    public void setCategory_intra(Integer category_intra) { this.category_intra = category_intra; }
+
 }
 
 /**
@@ -706,9 +750,7 @@ class SecurityConfig {
                 .username(e2Usr).password(enc.encode(e2Pswd)).roles("EDITOR").build();
         UserDetails e3 = User.builder()
                 .username(e3Usr).password(enc.encode(e3Pswd)).roles("EDITOR").build();
-	
-	
-	UserDetails a1 = User.builder()
+        UserDetails a1 = User.builder()
                 .username(a1Usr).password(enc.encode(a1Pswd)).roles("EDITOR").build();
 
         return new InMemoryUserDetailsManager(manager, e1, e2, e3, a1);
