@@ -169,7 +169,7 @@ class NewsController {
 
         String sql =
                 "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, " +
-                        "       category_position, category_intra, cover_media_url " +
+                        "       category_position, cover_media_url " +
                         "FROM ( " +
                         "  SELECT h.*, " +
                         "         " + FRONT_OF + " AS front, " +
@@ -206,25 +206,25 @@ class NewsController {
                 "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
         data.bannerText = "Latest in " + name;
 
-        // Category placement is its own pair of columns now, independent of
-        // the homepage's section_zone. Rows in the category's main block sort
-        // first (中心 before 侧) so the block fills from the head of the list;
-        // everything else — 'column'-only and unplaced alike — follows as feed
-        // material, newest first. Unplaced rows stay in: this is still the
-        // category's archive.
+        // Pure time order, with ONE exception: the newest 'main'-tagged row is
+        // pinned to the head, so it survives the LIMIT however old it is. Any
+        // other 'main'-tagged rows stay in their time position — the frontend
+        // treats them as ordinary feed material. Slot assignment (栏目 / 侧)
+        // is a time rule applied on the frontend; nothing here reads
+        // category_intra any more.
         String sql =
                 "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, " +
-                        "       category_position, category_intra, cover_media_url " +
+                        "       category_position, cover_media_url " +
                         "FROM home_page " +
                         "WHERE category = ? " +
                         "ORDER BY " +
-                        "  CASE WHEN FIND_IN_SET('main', category_position) THEN 0 ELSE 1 END, " +
-                        "  category_intra IS NULL, " +
-                        "  category_intra ASC, " +
+                        "  id = (SELECT id FROM home_page " +
+                        "        WHERE category = ? AND FIND_IN_SET('main', category_position) " +
+                        "        ORDER BY date_time DESC LIMIT 1) DESC, " +
                         "  date_time DESC " +
                         "LIMIT 100";
 
-        data.articlePool = queryArticles(sql, name);
+        data.articlePool = queryArticles(sql, name, name);
 
         return data;
     }
@@ -246,10 +246,6 @@ class NewsController {
                     : null;
 
             a.category_position = rs.getString("category_position");
-
-            a.category_intra = rs.getObject("category_intra") != null
-                    ? rs.getInt("category_intra")
-                    : null;
 
             // One cover column, image only. No child-table lookup.
             a.image = rs.getString("cover_media_url");

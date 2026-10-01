@@ -29,8 +29,6 @@ export interface Article {
   // same comma-joined contract as section_zone — membership only, never ===.
   category_position?: string | null;
 
-  // 排列 within the category page's main block. 0 = 中心, 1 = 侧. No 底.
-  category_intra?: number | null;
 }
 
 export const SLOT = { CENTER: 0, SIDE: 1, BOTTOM: 2 } as const;
