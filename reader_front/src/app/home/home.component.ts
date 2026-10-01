@@ -256,6 +256,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         // 三版 has no 底 — the ingest form does not offer it there.
         if (key === 'tertiary') {
           console.warn(`[home] id=${art.id}: 底 on 三版, which has no 底 slot — dropped`);
+        } else if ((key === 'main' || key === 'sub_main') && bucket.bottom.length >= 3) { //length
+          console.warn(`[home] id=${art.id}: 底 on ${key} full — dropped`);
         } else {
           bucket.bottom.push(art);
         }
