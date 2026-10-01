@@ -389,23 +389,25 @@ public class SpringBootTutorialApplication {
             return ((Number) incumbent.get("id")).longValue();
         }
 
-        // Incumbent is newer: incoming does not take the slot, whatever the
-        // editor picked. Its 栏目 membership stands.
-        article.setSection_zone(inColumn ? "column" : null);
-        article.setIntra_section_zone(null);
+        // Incumbent is newer: incoming keeps what the editor submitted.
         return null;
+    }
+
+    /**
+     * The 次板侧 graveyard. Called only once the replacement row is committed.
+     * 栏目 membership is kept if the incumbent had it.
+     */
+    private void demoteFromBottomStrip(Long id) {
+        jdbcTemplate.update(
+                "UPDATE editors_db SET " +
+                        "section_zone = IF(FIND_IN_SET('column', section_zone), 'sub_main,column', 'sub_main'), " +
+                        "intra_section_zone = 1 WHERE id = ?", id);
+        eventPublisher.publish(id, "update");
     }
 
     private void seatOnBottomStrip(ArticleRequest article, boolean inColumn) {
         article.setSection_zone(inColumn ? "main,column" : "main");
         article.setIntra_section_zone(2);
-    }
-
-    /** 栏目-only. Called only once the replacement row is committed. */
-    private void demoteFromBottomStrip(Long id) {
-        jdbcTemplate.update(
-                "UPDATE editors_db SET section_zone = 'column', intra_section_zone = NULL WHERE id = ?", id);
-        eventPublisher.publish(id, "update");
     }
 
     private boolean hasZone(String sectionZone, String zone) {
