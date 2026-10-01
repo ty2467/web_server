@@ -27,7 +27,7 @@ export interface CategoryFront {
 export class CategoryComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
-  private readonly SIDES_CAP = 3;
+  private readonly SIDES_CAP = 4;
 
   private articleStore = new Map<string, Article>();
 
