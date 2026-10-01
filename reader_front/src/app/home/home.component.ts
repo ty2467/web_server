@@ -75,6 +75,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Only 主板 中心 rotates; it is the one bucket whose plurality is a
   // feature rather than an editorial mistake.
   currentLeadIndex = 0;
+
+  superLeadIndex = 0;
+  superFadeState = signal<'fade-in' | 'fade-out'>('fade-in');
+
+  get superLeadArticle(): Article | null {
+    return this.layout.super_main.center[this.superLeadIndex] ?? null;
+  }
+
   private showcaseHead = 0;
   private rotationInterval: any;
 
@@ -144,6 +152,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.layout = emptyLayout();
     this.matrixRows = [];
     this.currentLeadIndex = 0;
+    this.superLeadIndex = 0;
     this.showcaseHead = 0;
 
     const byCategory = new Map<string, Article[]>();
