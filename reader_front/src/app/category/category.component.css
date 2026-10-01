@@ -31,13 +31,6 @@
 
 .lead-content h1 { font-size: 26px; line-height: 1.2; margin: 10px 0; font-weight: 800; }
 
-.lead-content p {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .hero-media {
   width: 100%;
   aspect-ratio: 16 / 9;
