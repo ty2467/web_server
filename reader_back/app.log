@@ -59,3 +59,35 @@ nohup: ignoring input
 2026-09-30T15:36:37.161-04:00  INFO 671062 --- [demo1] [1-58000-exec-10] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
 2026-09-30T15:36:37.298-04:00  INFO 671062 --- [demo1] [1-58000-exec-10] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.mariadb.jdbc.Connection@49f0477b
 2026-09-30T15:36:37.300-04:00  INFO 671062 --- [demo1] [1-58000-exec-10] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@53521ac8
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@56ff3eaf
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@63a6d02a
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@2e38eec5
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@281a5b93
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@6a0ffb18
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@6944a4ed
+any activation
+basic construction terminal point reached
+dto return reached
+com.example.demo.ArticleDetailDTO@237147f9

@@ -693,7 +693,8 @@ class SecurityConfig {
             @Value("${pstv_m_usr}")  String mUsr,  @Value("${pstv_m_pswd}")  String mPswd,
             @Value("${pstv_e1_usr}") String e1Usr, @Value("${pstv_e1_pswd}") String e1Pswd,
             @Value("${pstv_e2_usr}") String e2Usr, @Value("${pstv_e2_pswd}") String e2Pswd,
-            @Value("${pstv_e3_usr}") String e3Usr, @Value("${pstv_e3_pswd}") String e3Pswd) {
+            @Value("${pstv_e3_usr}") String e3Usr, @Value("${pstv_e3_pswd}") String e3Pswd,
+            @Value("${pstv_a1_usr}") String a1Usr, @Value("${pstv_a1_pswd}") String a1Pswd) {
 
         PasswordEncoder enc = passwordEncoder();
 
@@ -705,8 +706,12 @@ class SecurityConfig {
                 .username(e2Usr).password(enc.encode(e2Pswd)).roles("EDITOR").build();
         UserDetails e3 = User.builder()
                 .username(e3Usr).password(enc.encode(e3Pswd)).roles("EDITOR").build();
+	
+	
+	UserDetails a1 = User.builder()
+                .username(a1Usr).password(enc.encode(a1Pswd)).roles("EDITOR").build();
 
-        return new InMemoryUserDetailsManager(manager, e1, e2, e3);
+        return new InMemoryUserDetailsManager(manager, e1, e2, e3, a1);
     }
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
