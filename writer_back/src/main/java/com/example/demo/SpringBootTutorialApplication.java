@@ -354,10 +354,15 @@ public class SpringBootTutorialApplication {
 
 
     /**
-     * 主板底 is a fixed three-category strip. Membership is decided HERE, not
-     * by the editor: any article in one of the three contends for its
-     * category's slot the moment it is written. 栏目 presence is preserved
-     * either way — only the front is ours to set.
+     * 主板底 is a fixed three-category strip. Every article in one of the
+     * three is compared by date against its category's current holder, and
+     * the newer one always wins, overriding whatever 位置 the editor picked.
+     *
+     * Loser handling:
+     *   - incoming loses  -> keeps the placement it was submitted with,
+     *                        unless that placement IS 主板底, in which case
+     *                        it goes to 次板底.
+     *   - incumbent loses -> demoted to 次板侧 (see demoteFromBottomStrip).
      *
      * Returns the incumbent's id to be demoted AFTER the incoming row lands,
      * or null if there's nothing to demote.
@@ -389,10 +394,16 @@ public class SpringBootTutorialApplication {
             return ((Number) incumbent.get("id")).longValue();
         }
 
-        // Incumbent is newer: incoming keeps what the editor submitted.
+        // Incumbent is newer. Incoming keeps what the editor submitted —
+        // except 主板底 itself, which is taken, so it drops to 次板底.
+        boolean askedForStrip = hasZone(sectionZone, "main")
+                && Integer.valueOf(2).equals(article.getIntra_section_zone());
+        if (askedForStrip) {
+            article.setSection_zone(inColumn ? "sub_main,column" : "sub_main");
+            article.setIntra_section_zone(2);
+        }
         return null;
     }
-
     /**
      * The 次板侧 graveyard. Called only once the replacement row is committed.
      * 栏目 membership is kept if the incumbent had it.

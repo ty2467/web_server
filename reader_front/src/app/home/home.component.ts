@@ -88,6 +88,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     return this.rotisseriePool[this.currentLeadIndex] ?? null;
   }
 
+
+
   // =========================================================================
   // CONGREGATIONS
   //
@@ -261,28 +263,41 @@ export class HomeComponent implements OnInit, OnDestroy {
   // 主板 rotation
   // ===========================================================================
 
-  startLeadRotation() {
-    if (this.rotationInterval) clearInterval(this.rotationInterval);
-    if (this.rotisseriePool.length > 1) {
-      this.rotationInterval = setInterval(() => this.nextLead(), 6700);
-    }
-  }
+    // ===========================================================================
+    // 主板 / 高光专区 rotation — one interval, each pool advances only if it
+    // has more than one article.
+    // ===========================================================================
 
-  nextLead() {
-    this.fadeState.set('fade-out');
-
-    setTimeout(() => {
-      if (!this.rotisseriePool.length) return;
-
-      this.currentLeadIndex = (this.currentLeadIndex + 1) % this.rotisseriePool.length;
-
-      const videoEl = this.videoElement?.nativeElement;
-      if (videoEl) {
-        videoEl.load();
+    startLeadRotation() {
+      if (this.rotationInterval) clearInterval(this.rotationInterval);
+      if (this.rotisseriePool.length > 1 || this.layout.super_main.center.length > 1) {
+        this.rotationInterval = setInterval(() => this.nextLead(), 6700);
       }
+    }
 
-      this.fadeState.set('fade-in');
-      this.cdr.markForCheck();
-    }, 500);
-  }
+    nextLead() {
+      const mainRotates = this.rotisseriePool.length > 1;
+      const superRotates = this.layout.super_main.center.length > 1;
+
+      if (mainRotates) this.fadeState.set('fade-out');
+      if (superRotates) this.superFadeState.set('fade-out');
+
+      setTimeout(() => {
+        if (mainRotates) {
+          this.currentLeadIndex = (this.currentLeadIndex + 1) % this.rotisseriePool.length;
+          const videoEl = this.videoElement?.nativeElement;
+          if (videoEl) {
+            videoEl.load();
+          }
+          this.fadeState.set('fade-in');
+        }
+
+        if (superRotates) {
+          this.superLeadIndex = (this.superLeadIndex + 1) % this.layout.super_main.center.length;
+          this.superFadeState.set('fade-in');
+        }
+
+        this.cdr.markForCheck();
+      }, 500);
+    }
 }

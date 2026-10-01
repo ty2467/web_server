@@ -4,31 +4,34 @@
   <section class="top-lead-stack"
            *ngIf="layout.super_main.center.length || layout.super_main.side.length || layout.super_main.bottom.length">
 
-    <div class="lead-story"
-         *ngIf="topLeadArticle as lead"
-         [ngClass]="fadeState()">
-      <div class="lead-content"
-           [routerLink]="['/article', lead.slug]"
-           style="cursor:pointer;">
-        <span class="category">{{ lead.category }}</span>
-        <h1>{{ lead.title }}</h1>
-        <p>{{ lead.summary }}</p>
-      </div>
+    <div class="lead-story" [ngClass]="superFadeState()">
+      <ng-container *ngIf="superLeadArticle as lead">
+        <div class="lead-content"
+             [routerLink]="['/article', lead.slug]"
+             style="cursor:pointer;">
+          <span class="category">{{ lead.category }}</span>
+          <h1>{{ lead.title }}</h1>
+          <p>{{ lead.summary }}</p>
+        </div>
 
-      <div class="media-wrapper"
-           [routerLink]="['/article', lead.slug]"
-           style="cursor:pointer;">
-        @defer (on timer(500ms); prefetch on idle) {
-        <img *ngIf="lead.image" [src]="lead.image" class="lead-image" alt="lead image">
-        } @placeholder { <div class="media-skeleton"></div> }
-      </div>
+        <div class="media-wrapper"
+             [routerLink]="['/article', lead.slug]"
+             style="cursor:pointer;">
+          @defer (on timer(500ms); prefetch on idle) {
+          <img *ngIf="lead.image" [src]="lead.image" class="lead-image" alt="lead image">
+          } @placeholder { <div class="media-skeleton"></div> }
+        </div>
+      </ng-container>
 
       <div class="side-news">
-        <!-- unchanged -->
         <div class="side-article"
-             *ngFor="let s of layout.main.side; trackBy: trackBySlug"
+             *ngFor="let s of layout.super_main.side; trackBy: trackBySlug"
              [routerLink]="['/article', s.slug]">
-          ...
+          <img *ngIf="s.image" [src]="s.image" class="side-image">
+          <div class="side-text">
+            <span class="category small">{{ s.category }}</span>
+            <h4>{{ s.title }}</h4>
+          </div>
         </div>
       </div>
     </div>
