@@ -63,6 +63,10 @@ class Article {
 
     /** 排列 within the chosen front: 0 = 中心, 1 = 侧, 2 = 底. Null for 栏目-only rows. */
     public Integer intra_section_zone;
+    public String category_position;
+
+    /** 排列 within the category page's main block: 0 = 中心, 1 = 侧. No 底. Null when not on main. */
+    public Integer category_intra;
 
     public Article() {}
 
