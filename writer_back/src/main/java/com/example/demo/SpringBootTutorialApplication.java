@@ -416,6 +416,46 @@ public class SpringBootTutorialApplication {
         eventPublisher.publish(id, "update");
     }
 
+    /**
+     * One 'main' per category page. The incoming article takes it; every
+     * other holder in the same category is cleared, matching the one-off
+     * cleanup. Ids are read first so each bumped row reaches HomePageSync.
+     * Called only once the incoming row is committed.
+     */
+    private void bumpCategoryMain(Long selfId, String category) {
+        List<Long> ids = jdbcTemplate.queryForList(
+                "SELECT id FROM editors_db " +
+                        "WHERE category = ? AND FIND_IN_SET('main', category_position) AND id <> ?",
+                Long.class, category, selfId);
+        if (ids.isEmpty()) return;
+
+        jdbcTemplate.update(
+                "UPDATE editors_db SET category_position = NULL " +
+                        "WHERE category = ? AND FIND_IN_SET('main', category_position) AND id <> ?",
+                category, selfId);
+
+        for (Long id : ids) eventPublisher.publish(id, "update");
+    }
+
+    private boolean resolveCategoryMain(ArticleRequest article, Long selfId) {
+        if (!hasZone(article.getCategory_position(), "main")) return false;
+
+        Timestamp incoming = parseDateTimeLocal(article.getDate_time());
+
+        List<Timestamp> rows = jdbcTemplate.queryForList(
+                "SELECT date_time FROM editors_db " +
+                        "WHERE category = ? AND FIND_IN_SET('main', category_position) " +
+                        "  AND (? IS NULL OR id <> ?) " +
+                        "ORDER BY date_time DESC LIMIT 1",
+                Timestamp.class, article.getCategory(), selfId, selfId);
+
+        if (rows.isEmpty() || incoming.after(rows.get(0))) return true;
+
+        // Incumbent is newer: incoming does not take 'main'.
+        article.setCategory_position(hasZone(article.getCategory_position(), "column") ? "column" : null);
+        return false;
+    }
+
     private void seatOnBottomStrip(ArticleRequest article, boolean inColumn) {
         article.setSection_zone(inColumn ? "main,column" : "main");
         article.setIntra_section_zone(2);
@@ -426,6 +466,8 @@ public class SpringBootTutorialApplication {
         for (String z : sectionZone.split(",")) if (zone.equals(z.trim())) return true;
         return false;
     }
+
+
 
     /**
      * The UI can't produce two fronts, so this isn't validation an editor
@@ -503,8 +545,10 @@ public class SpringBootTutorialApplication {
             article.setIntra_section_zone(null);
         }
 
-        // Category page: 中心/侧 belongs to 'main' only, same rule as above.
+        // Category page: one 'main' per category, newest date_time wins.
+        // Resolved before the write so a losing article is stored without it.
         article.setCategory_position(normalizeCategoryPosition(article.getCategory_position()));
+        boolean seatCategoryMain = resolveCategoryMain(article, isUpdate ? articleId : null);
         if (!hasZone(article.getCategory_position(), "main")) {
             article.setCategory_intra(null);
         }
@@ -558,6 +602,8 @@ public class SpringBootTutorialApplication {
             }
 
             if (toDemote != null) demoteFromBottomStrip(toDemote);
+
+            if (seatCategoryMain) bumpCategoryMain(articleId, article.getCategory());
 
             eventPublisher.publish(articleId, isUpdate ? "update" : "insert");
 
