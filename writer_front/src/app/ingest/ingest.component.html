@@ -6,9 +6,6 @@
         <label>标题<span class="required-mark">*</span></label>
         <input type="text" formControlName="title" class="title-input" placeholder="Title">
 
-        <label>副标题</label>
-        <textarea formControlName="summary" class="summary-input" placeholder="Write a subtitle..."></textarea>
-
         <div class="meta-row">
           <div class="meta-field">
             <label>作者</label>
@@ -25,82 +22,30 @@
             <label>发布时间</label>
             <input type="datetime-local" formControlName="date_time">
           </div>
-          <div class="meta-field">
-            <label>浏览量</label>
-            <input type="number" min="0" step="1" formControlName="view_count" placeholder="0">
-          </div>
-
-          <!-- 位置: at most one front (radio enforces it), 栏目 alongside -->
-          <div class="meta-field zone-field">
-            <label>位置<span class="required-mark">*</span></label>
-            <div class="zone-picker">
-              <div class="zone-group">
-                <label class="zone-opt" *ngFor="let opt of availableFrontOptions">
-                  <input type="radio" formControlName="front" [value]="opt.value"> {{ opt.label }}
-                </label>
-                <!-- Required, not decoration: a radio group cannot return to
-                     unselected once clicked, and 栏目-only is a legal placement. -->
-                <label class="zone-opt">
-                  <input type="radio" formControlName="front" [value]="null"> 无
-                </label>
-              </div>
-              <div class="zone-group">
-                <label class="zone-opt">
-                  <input type="checkbox" formControlName="in_column"> 栏目
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="meta-field">
-            <label>排列<span class="required-mark" *ngIf="!intraSectionZoneDisabled">*</span></label>
-            <!-- No [disabled] binding: the control's own disabled state is
-                 driven from syncIntraZoneValidity(). -->
-            <select formControlName="intra_section_zone">
-              <option [ngValue]="null">— 选择 —</option>
-              <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>
-            </select>
-            <div *ngIf="mainCenterReserved" class="zone-notice">只有美洲頭條可以使用主版中心，详情请参考Manual</div>
-
-            <div class="meta-field zone-field">
-              <label>分类页位置</label>
-              <div class="zone-picker">
-                <div class="zone-group">
-                  <label class="zone-opt">
-                    <input type="checkbox" formControlName="cat_main"> 主板
-                  </label>
-                  <label class="zone-opt">
-                    <input type="checkbox" formControlName="cat_column"> 栏目
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <div class="meta-field">
-              <label>分类页排列<span class="required-mark" *ngIf="!categoryIntraDisabled">*</span></label>
-              <select formControlName="category_intra">
-                <option [ngValue]="null">— 选择 —</option>
-                <option *ngFor="let opt of categoryIntraOptions" [ngValue]="opt.value">{{ opt.label }}</option>
-              </select>
-            </div>
-          </div>
         </div>
-
         <div class="lead-image-section">
           <label>Lead Image</label>
-          <div class="image-uploader" (click)="leadImgInput.click()" [class.processing]="leadImageUploading">
-            <img *ngIf="leadImagePreview as preview" [src]="preview">
-            <div class="progress-container" *ngIf="leadImageUploading">
-              <div class="progress-bar" [style.width.%]="leadImageProgress"></div>
-              <span class="progress-text">{{ leadImageProgress }}%</span>
+          <div class="lead-image-row">
+            <div class="lead-thumb"
+                 [class.empty]="!leadImagePreview && !leadImageUploading"
+                 (click)="leadImgInput.click()">
+              <img *ngIf="leadImagePreview as preview" [src]="preview">
+              <div class="progress-container" *ngIf="leadImageUploading">
+                <div class="progress-bar" [style.width.%]="leadImageProgress"></div>
+                <span class="progress-text">{{ leadImageProgress }}%</span>
+              </div>
+              <span *ngIf="!leadImagePreview && !leadImageUploading" class="lead-thumb-prompt">+ Lead image</span>
             </div>
-            <div *ngIf="!leadImagePreview && !leadImageUploading" class="upload-prompt">+ Add Lead Image</div>
+
+            <div class="lead-image-side" *ngIf="leadImagePreview">
+              <input type="text" class="caption-input" placeholder="Caption (optional)" formControlName="lead_image_caption">
+              <div class="lead-image-actions">
+                <button type="button" class="replace-media" (click)="leadImgInput.click()">Replace</button>
+                <button type="button" class="replace-media lead-remove" (click)="removeLeadImage()">Remove</button>
+              </div>
+            </div>
           </div>
           <input type="file" #leadImgInput (change)="onLeadImageSelected($event)" hidden accept="image/*">
-          <div class="media-controls" *ngIf="leadImagePreview">
-            <input type="text" class="caption-input" placeholder="Caption (optional)" formControlName="lead_image_caption">
-            <button type="button" class="remove-media" (click)="removeLeadImage()">✕</button>
-          </div>
         </div>
       </header>
 
@@ -240,6 +185,78 @@
         </div>
       </div>
 
+      <hr class="editor-divider">
+
+      <!-- Placement and lead image: after the body. -->
+      <section class="post-meta">
+        <label>副标题</label>
+        <textarea formControlName="summary" class="summary-input" placeholder="Write a subtitle..."></textarea>
+
+        <div class="meta-row">
+          <div class="meta-field">
+            <label>浏览量</label>
+            <input type="number" min="0" step="1" formControlName="view_count" placeholder="0">
+          </div>
+
+          <!-- 位置: at most one front (radio enforces it), 栏目 alongside -->
+          <div class="meta-field zone-field">
+            <label>位置<span class="required-mark">*</span></label>
+            <div class="zone-picker">
+              <div class="zone-group">
+                <label class="zone-opt" *ngFor="let opt of availableFrontOptions">
+                  <input type="radio" formControlName="front" [value]="opt.value"> {{ opt.label }}
+                </label>
+                <!-- Required, not decoration: a radio group cannot return to
+                     unselected once clicked, and 栏目-only is a legal placement. -->
+                <label class="zone-opt">
+                  <input type="radio" formControlName="front" [value]="null"> 无
+                </label>
+              </div>
+              <div class="zone-group">
+                <label class="zone-opt">
+                  <input type="checkbox" formControlName="in_column"> 栏目
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="meta-field">
+            <label>排列<span class="required-mark" *ngIf="!intraSectionZoneDisabled">*</span></label>
+            <!-- No [disabled] binding: the control's own disabled state is
+                 driven from syncIntraZoneValidity(). -->
+            <select formControlName="intra_section_zone">
+              <option [ngValue]="null">— 选择 —</option>
+              <option *ngFor="let opt of intraSectionZoneOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+            </select>
+            <div *ngIf="mainCenterReserved" class="zone-notice">只有美洲頭條可以使用主版中心，详情请参考Manual</div>
+
+            <div class="meta-field zone-field">
+              <label>分类页位置</label>
+              <div class="zone-picker">
+                <div class="zone-group">
+                  <label class="zone-opt">
+                    <input type="checkbox" formControlName="cat_main"> 主板
+                  </label>
+                  <label class="zone-opt">
+                    <input type="checkbox" formControlName="cat_column"> 栏目
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="meta-field">
+              <label>分类页排列<span class="required-mark" *ngIf="!categoryIntraDisabled">*</span></label>
+              <select formControlName="category_intra">
+                <option [ngValue]="null">— 选择 —</option>
+                <option *ngFor="let opt of categoryIntraOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+
+      </section>
+
       <div class="editor-actions">
         <div class="toolbar-inline">
           <button type="button" (click)="insertBlock('paragraph', lastBlockId)">¶ Text</button>
@@ -247,7 +264,7 @@
           <button type="button" (click)="insertBlock('video', lastBlockId)">🎥 Video</button>
         </div>
         <button type="submit" class="submit-btn" [class.success-state]="isSuccess"
-		[disabled]="metaForm.invalid || isSubmitting || isSuccess || isAnyBlockUploading">
+                [disabled]="metaForm.invalid || isSubmitting || isSuccess || isAnyBlockUploading">
           <ng-container *ngIf="!isSuccess">
             {{ isAnyBlockUploading ? 'Uploading Media...' : (editingId ? 'Update Article' : 'Publish to Database') }}
           </ng-container>
