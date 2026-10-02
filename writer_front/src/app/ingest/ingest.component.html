@@ -104,6 +104,31 @@
         </div>
       </header>
 
+      <div class="tiptap-menu-bar">
+        <div class="menu-group">
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleBold().run()" [class.is-active]="activeEditor?.isActive('bold')">B</button>
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleItalic().run()" [class.is-active]="activeEditor?.isActive('italic')">I</button>
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleUnderline().run()" [class.is-active]="activeEditor?.isActive('underline')">U</button>
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleStrike().run()" [class.is-active]="activeEditor?.isActive('strike')">S</button>
+          <button type="button" [disabled]="!activeEditor" (click)="setLink(activeEditor!)" [class.is-active]="activeEditor?.isActive('link')">🔗</button>
+        </div>
+        <div class="menu-group">
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleHeading({ level: 1 }).run()" [class.is-active]="activeEditor?.isActive('heading', { level: 1 })">H1</button>
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleHeading({ level: 2 }).run()" [class.is-active]="activeEditor?.isActive('heading', { level: 2 })">H2</button>
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleBulletList().run()" [class.is-active]="activeEditor?.isActive('bulletList')">•</button>
+          <button type="button" [disabled]="!activeEditor" (click)="activeEditor!.chain().focus().toggleOrderedList().run()" [class.is-active]="activeEditor?.isActive('orderedList')">1.</button>
+        </div>
+        <div class="menu-group">
+          <select class="font-size-select"
+                  [disabled]="!activeEditor"
+                  [value]="activeEditor?.getAttributes('textStyle')?.['fontSize'] || ''"
+                  (change)="onFontSizeChange($event, activeEditor!)">
+            <option value="">Default</option>
+            <option *ngFor="let size of fontSizes" [value]="size">{{ size }}</option>
+          </select>
+        </div>
+      </div>
+
       <hr class="editor-divider">
 
       <div class="status-msg" *ngIf="status">{{ status }}</div>
@@ -114,34 +139,16 @@
 
         <div *ngFor="let block of blocks; trackBy: trackByLocalId"
              class="block-unit"
+             [class.first-paragraph]="block.localId === firstParagraphId"
              cdkDrag>
 
-          <div class="drag-handle" cdkDragHandle>⠿</div>
+          <!-- The left margin is the handle: hovering into it reveals the
+              grip, hovering or editing the block itself doesn't. -->
+          <div class="drag-gutter" cdkDragHandle>
+            <span class="drag-handle">⠿</span>
+          </div>
 
           <div *ngIf="block.type === 'paragraph'" class="tiptap-wrapper">
-            <div class="tiptap-menu-bar" *ngIf="editors.get(block.localId) as editor">
-              <div class="menu-group">
-                <button type="button" (click)="editor.chain().focus().toggleBold().run()" [class.is-active]="editor.isActive('bold')">B</button>
-                <button type="button" (click)="editor.chain().focus().toggleItalic().run()" [class.is-active]="editor.isActive('italic')">I</button>
-                <button type="button" (click)="editor.chain().focus().toggleUnderline().run()" [class.is-active]="editor.isActive('underline')">U</button>
-                <button type="button" (click)="editor.chain().focus().toggleStrike().run()" [class.is-active]="editor.isActive('strike')">S</button>
-                <button type="button" (click)="setLink(editor)" [class.is-active]="editor.isActive('link')">🔗</button>
-              </div>
-              <div class="menu-group">
-                <button type="button" (click)="editor.chain().focus().toggleHeading({ level: 1 }).run()" [class.is-active]="editor.isActive('heading', { level: 1 })">H1</button>
-                <button type="button" (click)="editor.chain().focus().toggleHeading({ level: 2 }).run()" [class.is-active]="editor.isActive('heading', { level: 2 })">H2</button>
-                <button type="button" (click)="editor.chain().focus().toggleBulletList().run()" [class.is-active]="editor.isActive('bulletList')">•</button>
-                <button type="button" (click)="editor.chain().focus().toggleOrderedList().run()" [class.is-active]="editor.isActive('orderedList')">1.</button>
-              </div>
-              <div class="menu-group">
-                <select class="font-size-select"
-                        [value]="editor.getAttributes('textStyle')['fontSize'] || ''"
-                        (change)="onFontSizeChange($event, editor)">
-                  <option value="">Default</option>
-                  <option *ngFor="let size of fontSizes" [value]="size">{{ size }}</option>
-                </select>
-              </div>
-            </div>
             <tiptap-editor [editor]="editors.get(block.localId)!" class="editable-area"></tiptap-editor>
             <div class="block-actions" *ngIf="(uiState.get(block.localId)?.charCount ?? 0) > 0">
               <span class="char-count">{{ uiState.get(block.localId)?.charCount }} characters</span>

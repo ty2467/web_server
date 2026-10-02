@@ -10,7 +10,7 @@
      near-white tone so the page is one continuous surface. */
   background: #fdfbf9;
   background-attachment: fixed;
-  overflow-x: hidden;
+  overflow-x: clip;
   position: relative;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -486,7 +486,7 @@ button:disabled {
   font-size: 21px;
   line-height: 1.58;
   outline: none;
-  margin: 10px 0;
+  margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
   direction: ltr !important;
@@ -721,7 +721,7 @@ button:disabled {
 /* Tiptap Specific Styling */
 ::ng-deep .tiptap-wrapper {
   position: relative;
-  margin: 10px 0;
+  margin: 0;
 }
 
 ::ng-deep .ProseMirror {
@@ -734,9 +734,18 @@ button:disabled {
   white-space: pre-wrap;
   word-wrap: break-word;
   text-align: inherit;
+  margin: 0;
 }
 
-::ng-deep .ProseMirror p.is-editor-empty:first-child::before {
+/* Browser default <p> margin (1em top and bottom) — the block spacing on
+   .block-unit is the only gap between paragraphs. */
+::ng-deep .ProseMirror p {
+  margin: 0;
+}
+
+/* Placeholder only in the first paragraph block; Tiptap still marks every
+   empty editor, the text is just not drawn elsewhere. */
+.first-paragraph ::ng-deep .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: #ccc;
@@ -754,11 +763,19 @@ button:disabled {
 }
 
 /* Block Metadata Styling */
+/* Out of flow: an invisible row still holds its height, which was adding
+   a blank line under every paragraph. */
 .block-actions {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+  padding-left: 8px;
+  background: #fdfbf9;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -817,20 +834,12 @@ button:disabled {
 
 /* Toolbar Buttons */
 /* Tiptap Toolbar Styling */
-/* 1. Initial hidden state for the menu bar */
+/* One document-level toolbar, always shown. Sticky against the viewport:
+   in flow under the lead image, pinned to the top once scrolled past. */
 .tiptap-menu-bar {
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(10px); /* Subtle slide-up effect */
-  pointer-events: none; /* Prevents clicking a hidden menu */
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Keep your existing styling below... */
   display: flex;
   flex-wrap: wrap;
-
   gap: 8px;
-
   padding: 8px 15px;
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(20px);
@@ -838,17 +847,19 @@ button:disabled {
   border-radius: 16px;
   margin-bottom: 10px;
   position: sticky;
-  top: 10px;
-  z-index: 10;
+  top: 0;
+  z-index: 20;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
 }
 
-/* 2. Reveal when the editor inside the wrapper is focused */
-.tiptap-wrapper:focus-within .tiptap-menu-bar {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-  pointer-events: auto;
+/* No paragraph focused yet: the global button:disabled rule would paint
+   grey slabs here, so keep the bar's own look, just dimmed. */
+.tiptap-menu-bar button:disabled,
+.tiptap-menu-bar select:disabled {
+  background: transparent;
+  color: #ccc;
+  box-shadow: none;
+  cursor: default;
 }
 
 /* 3. Paragraphs stay flush with the page — no container background or
@@ -856,7 +867,7 @@ button:disabled {
    from the paper it's sitting on. Only the hover-only drag handle and
    insert controls (below) mark block boundaries at all. */
 .tiptap-wrapper {
-  padding: 4px 0;
+  padding: 0;
 }
 
 .menu-group {
@@ -934,10 +945,7 @@ button:disabled {
   color: #ee812b;
 }
 
-/* Ensure the editor doesn't feel cramped under the bar */
-.editable-area {
-  padding-top: 10px;
-}
+
 
 /*-----tiptap effects */
 
@@ -946,21 +954,32 @@ button:disabled {
 
 .block-unit {
   position: relative;
-  margin-bottom: 25px; /* Space for the insert-separator */
+  margin-bottom: 12px; /* Space for the insert-separator */
 }
 
 /* Hide the drag handle until you hover the block */
-.drag-handle {
+/* The margin left of each block is the drag handle. The grip shows only
+   while the pointer is in that margin, not on hover or focus of the block. */
+.drag-gutter {
   position: absolute;
-  left: -25px;
-  top: 5px;
+  left: -44px;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8px;
   cursor: grab;
+}
+
+.drag-handle {
   color: #ccc;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-.block-unit:hover .drag-handle {
+.drag-gutter:hover .drag-handle {
   opacity: 1;
 }
 
@@ -984,12 +1003,17 @@ button:disabled {
   align-items: center;
   opacity: 0;
   z-index: 10;
+  pointer-events: none;   /* invisible strip must not take clicks meant for text */
   transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.block-unit:hover .insert-separator,
-.insert-separator:hover {
+.block-unit:hover .insert-separator {
   opacity: 1;
+}
+
+/* Only the pill is clickable, and only while it's showing. */
+.block-unit:hover .insert-pill {
+  pointer-events: auto;
 }
 
 /* The horizontal line - made slightly more 'ghostly' since it's always there */
