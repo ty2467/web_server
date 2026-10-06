@@ -95,6 +95,11 @@ public class SpringBootTutorialApplication {
 
     @Autowired
     private EditorsDbEventPublisher eventPublisher;
+
+    @Autowired
+    private TitleEmbedder titleEmbedder;
+
+
     // <input type="datetime-local"> sends/expects exactly "yyyy-MM-ddTHH:mm"
     // (seconds optional) — Java's default ISO_LOCAL_DATE_TIME parser matches
     // that format already, no custom pattern needed for parsing. Formatting
@@ -516,6 +521,42 @@ public class SpringBootTutorialApplication {
         return false;
     }
 
+
+    @GetMapping("/api/search")
+    public ResponseEntity<?> search(@RequestParam("q") String q,
+                                    @RequestParam(value = "limit", defaultValue = "10") int limit) {
+        String query = q.strip();
+        if (query.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Empty query"));
+        }
+        if (query.length() > 200) query = query.substring(0, 200);
+        int k = Math.max(1, Math.min(limit, 50));
+
+        byte[] vec;
+        try {
+            vec = titleEmbedder.embed(query, "RETRIEVAL_QUERY");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(502).body(Map.of("error", "Embedding failed"));
+        }
+
+        /*the search step*/
+        // ORDER BY the distance expression + LIMIT is what lets MariaDB
+        // walk the HNSW index instead of scanning every row.
+        String sql = "SELECT id, title, category, date_time FROM editors_db " +
+                "ORDER BY VEC_DISTANCE_COSINE(embedding, ?) LIMIT ?";
+        List<EditorialItemDTO> items = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            EditorialItemDTO item = new EditorialItemDTO();
+            item.setId(rs.getLong("id"));
+            item.setTitle(rs.getString("title"));
+            item.setCategory(rs.getString("category"));
+            item.setDate_time(rs.getTimestamp("date_time").toString());
+            return item;
+        }, vec, k);
+
+        return ResponseEntity.ok(items);
+    }
+
     /**
      * ingest metadata + content_blocks (Tiptap JSON, media urls, captions,
      * alignment — everything the editor produced) as one row, one write.
@@ -606,6 +647,9 @@ public class SpringBootTutorialApplication {
             if (seatCategoryMain) bumpCategoryMain(articleId, article.getCategory());
 
             eventPublisher.publish(articleId, isUpdate ? "update" : "insert");
+
+            titleEmbedder.embedAsync(articleId, article.getTitle());
+
 
             return ResponseEntity.ok().body(Map.of("message", "Article saved successfully", "id", articleId));
 

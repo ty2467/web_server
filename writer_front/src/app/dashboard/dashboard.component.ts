@@ -53,9 +53,21 @@ export class DashboardComponent implements OnInit {
 
   private readonly API_URL = this.baseURL + "/articles/summary"; //api/articles/summary';
   private readonly API_URL2 = this.baseURL +"/delete"; ///api/delete';
+  private readonly SEARCH_URL = this.baseURL + "/search"; ///api/search';
   /** modify dashboard objects */
   readonly selectedIds = signal<Set<number>>(new Set());
   readonly pendingDelete = signal<EditorialItem | null>(null);
+
+
+  /**
+   * search — picks the base list. Active: the ranked results. Empty: all
+   * articles. The filters below always run on whichever base this yields,
+   * so search and filters compose instead of competing.
+   */
+  readonly searchQuery = signal<string>('');
+  readonly searchResults = signal<EditorialItem[] | null>(null);
+
+  private readonly baseArticles = computed(() => this.searchResults() ?? this.articles());
 
 
   /** filters */
@@ -68,13 +80,14 @@ export class DashboardComponent implements OnInit {
     [...new Set(this.articles().map(a => a.category).filter(Boolean))].sort()
   );
 
-  readonly filteredArticles = computed(() => {
+  /** search base -> filters. Recomputes when either side changes. */
+  readonly visibleArticles = computed(() => {
     const min = this.idMin();
     const max = this.idMax();
     const cat = this.categoryFilter();
     const month = this.monthFilter();
 
-    return this.articles().filter(a => {
+    return this.baseArticles().filter(a => {
       if (min !== null && a.id < min) return false;
       if (max !== null && a.id > max) return false;
       if (cat && a.category !== cat) return false;
@@ -83,18 +96,18 @@ export class DashboardComponent implements OnInit {
     });
   });
 
-    /** pagination — sits on top of filteredArticles */
+    /** pagination — sits on top of visibleArticles */
   readonly pageSize = signal<number>(25);
 
-  // the page index is tagged with the filter state it was chosen under;
-  // when a filter or the page size changes, the tag stops matching and it falls back to page 0
+  // the page index is tagged with the filter + search state it was chosen under;
+  // when either changes, or the page size does, the tag stops matching and it falls back to page 0
   private readonly pageKey = computed(() =>
-    `${this.idMin()}|${this.idMax()}|${this.categoryFilter()}|${this.monthFilter()}|${this.pageSize()}`
+    `${this.idMin()}|${this.idMax()}|${this.categoryFilter()}|${this.monthFilter()}|${this.pageSize()}|${this.searchQuery()}`
   );
   private readonly pageState = signal<{ key: string; index: number }>({ key: '', index: 0 });
 
   readonly totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.filteredArticles().length / this.pageSize()))
+    Math.max(1, Math.ceil(this.visibleArticles().length / this.pageSize()))
   );
 
   readonly currentPage = computed(() => {
@@ -105,7 +118,7 @@ export class DashboardComponent implements OnInit {
 
   readonly pagedArticles = computed(() => {
     const start = this.currentPage() * this.pageSize();
-    return this.filteredArticles().slice(start, start + this.pageSize());
+    return this.visibleArticles().slice(start, start + this.pageSize());
   });
 
 
@@ -163,6 +176,37 @@ export class DashboardComponent implements OnInit {
 
 
   /**
+   * @search
+   */
+  /** NFKC (full-width -> half-width), collapse whitespace, trim, cap at the backend's 200. */
+  private cleanQuery(raw: string): string {
+    return raw.normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 200);
+  }
+
+  /** Empty query clears the search back to all articles. */
+  submitSearch(raw: string): void {
+    const q = this.cleanQuery(raw);
+    this.searchQuery.set(q);
+
+    if (!q) {
+      this.searchResults.set(null);
+      return;
+    }
+
+    this.http.get<EditorialItem[]>(this.SEARCH_URL, { params: { q, limit: 50 } }).subscribe({
+      next: (data) => {
+        // a slower, older search must not overwrite a newer one
+        if (this.searchQuery() === q) this.searchResults.set(data);
+      },
+      error: (err) => {
+        console.error('Search failed:', err);
+        this.errorMessage.set('Search failed on the backend.');
+      }
+    });
+  }
+
+
+  /**
    * @filters
    */
   private toMonthKey(dateTime: string): string {
@@ -209,8 +253,9 @@ export class DashboardComponent implements OnInit {
     // Send array of IDs to Spring Boot
     this.http.request('delete', this.API_URL2, { body: idsToDelete }).subscribe({
       next: () => { //UI update.
-        // Optimistic UI update: filter out deleted items
+        // Optimistic UI update: filter out deleted items — from the search base too
         this.articles.update(items => items.filter(a => !idsToDelete.includes(a.id)));
+        this.searchResults.update(items => items && items.filter(a => !idsToDelete.includes(a.id)));
         this.selectedIds.set(new Set()); // Clear selection
       },
       error: (err) => {
@@ -236,6 +281,7 @@ export class DashboardComponent implements OnInit {
     this.http.request('delete', this.API_URL2, { body: [target.id] }).subscribe({
       next: () => {
         this.articles.update(items => items.filter(a => a.id !== target.id));
+        this.searchResults.update(items => items && items.filter(a => a.id !== target.id));
         // drop it from the bulk selection too, if it was checked
         const sel = new Set(this.selectedIds());
         sel.delete(target.id);

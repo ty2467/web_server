@@ -169,6 +169,61 @@ input[type="checkbox"]:checked::after {
   cursor: pointer;
 }
 
+/* --- Search (inside the filter row) --- */
+.search-field {
+  flex: 1;
+  min-width: 220px;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.search-row input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin-top: 0;
+  padding: 8px 12px;
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fafafa;
+  font-size: 0.85rem;
+  color: #1c252e;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-row input::placeholder {
+  color: #b5b5b5;
+}
+
+.search-row input:focus {
+  outline: none;
+  border-color: rgba(238, 129, 43, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(238, 129, 43, 0.08);
+}
+
+.search-btn {
+  background: #ee812b;
+  color: #fff;
+  border: none;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(238, 129, 43, 0.2);
+  transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+  background: #d9701f;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(238, 129, 43, 0.3);
+}
 /* --- Table Styling --- */
 .table-responsive {
   width: 100%;

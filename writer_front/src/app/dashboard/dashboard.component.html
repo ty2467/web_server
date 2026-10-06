@@ -13,12 +13,21 @@
           (click)="issueBulkDeletion()">
           Delete Selected ({{ selectedIds().size }})
         </button>
-        <span class="badge" *ngIf="!isLoading()">{{ filteredArticles().length }} / {{ articles().length }} Entries</span>
+        <span class="badge" *ngIf="!isLoading()">{{ visibleArticles().length }} / {{ articles().length }} Entries</span>
       </div>
 
     </div>
 
+
     <div class="filter-bar">
+      <div class="filter-field search-field">
+        Search
+        <div class="search-row">
+          <input #searchInput type="search" placeholder="Search articles…"
+                 (keydown.enter)="submitSearch(searchInput.value)" />
+          <button class="search-btn" (click)="submitSearch(searchInput.value)">Search</button>
+        </div>
+      </div>
       <label class="filter-field">
         ID from
         <input #minInput type="number" [value]="idMin() ?? ''"
@@ -108,7 +117,7 @@
       </table>
     </div>
 
-    @if (!isLoading() && filteredArticles().length > 0) {
+    @if (!isLoading() && visibleArticles().length > 0) {
       <div class="pager">
         <button class="pager-btn" [disabled]="currentPage() === 0" (click)="goToPage(currentPage() - 1)">Prev</button>
         @for (p of pageButtons(); track $index) {
