@@ -293,7 +293,7 @@ public class EditorsDisplaySync {
             } else if (blocksChanged) {
                 try (PreparedStatement ps = db.prepareStatement(
                         "UPDATE article_display SET " +
-                                " headline=?, dek=?, category=?, author_name=?, " +
+                                " headline=?, dek=?, category=?, author_name=?, published_at=?, " +
                                 " lead_image_url=?, lead_image_caption=?, " +
                                 " content_blocks=?, word_count=?, reading_time_minutes=?, view_count=?, revised_at=? " +
                                 "WHERE editors_db_id=?")) {
@@ -301,29 +301,32 @@ public class EditorsDisplaySync {
                     ps.setString(2, src.summary);
                     ps.setString(3, src.category);
                     ps.setString(4, src.author);
-                    ps.setString(5, leadUrl);
-                    ps.setString(6, leadCaption);
-                    ps.setString(7, blocksJson);
-                    ps.setInt(8, wordCount);
-                    ps.setInt(9, readingMinutes);
-                    ps.setInt(10, src.viewCount);
-                    ps.setTimestamp(11, Timestamp.from(java.time.Instant.now()));
-                    ps.setLong(12, editorsDbId);
+                    ps.setTimestamp(5, src.dateTime);
+                    ps.setString(6, leadUrl);
+                    ps.setString(7, leadCaption);
+                    ps.setString(8, blocksJson);
+                    ps.setInt(9, wordCount);
+                    ps.setInt(10, readingMinutes);
+                    ps.setInt(11, src.viewCount);
+                    ps.setTimestamp(12, Timestamp.from(java.time.Instant.now()));
+                    ps.setLong(13, editorsDbId);
                     ps.executeUpdate();
                 }
             } else {
                 try (PreparedStatement ps = db.prepareStatement(
                         "UPDATE article_display SET " +
-                                " headline=?, dek=?, category=?, author_name=?, lead_image_url=?, lead_image_caption=?, view_count=? " +
+                                " headline=?, dek=?, category=?, author_name=?, published_at=?, " +
+                                " lead_image_url=?, lead_image_caption=?, view_count=? " +
                                 "WHERE editors_db_id=?")) {
                     ps.setString(1, src.title);
                     ps.setString(2, src.summary);
                     ps.setString(3, src.category);
                     ps.setString(4, src.author);
-                    ps.setString(5, leadUrl);
-                    ps.setString(6, leadCaption);
-                    ps.setInt(7, src.viewCount);
-                    ps.setLong(8, editorsDbId);
+                    ps.setTimestamp(5, src.dateTime);
+                    ps.setString(6, leadUrl);
+                    ps.setString(7, leadCaption);
+                    ps.setInt(8, src.viewCount);
+                    ps.setLong(9, editorsDbId);
                     ps.executeUpdate();
                 }
             }
