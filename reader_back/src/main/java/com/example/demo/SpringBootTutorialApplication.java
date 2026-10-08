@@ -169,7 +169,7 @@ class NewsController {
 
         String sql =
                 "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, " +
-                        "       category_position, cover_media_url " +
+                        "       cover_media_url " +
                         "FROM ( " +
                         "  SELECT h.*, " +
                         "         " + FRONT_OF + " AS front, " +
@@ -236,7 +236,6 @@ class NewsController {
                     ? rs.getInt("intra_section_zone")
                     : null;
 
-            a.category_position = rs.getString("category_position");
 
             // One cover column, image only. No child-table lookup.
             a.image = rs.getString("cover_media_url");
