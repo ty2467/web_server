@@ -589,7 +589,7 @@ public class SpringBootTutorialApplication {
         // Category page: one 'main' per category, newest date_time wins.
         // Resolved before the write so a losing article is stored without it.
         article.setCategory_position(normalizeCategoryPosition(article.getCategory_position()));
-        boolean seatCategoryMain = resolveCategoryMain(article, isUpdate ? articleId : null);
+//        boolean seatCategoryMain = resolveCategoryMain(article, isUpdate ? articleId : null);
         if (!hasZone(article.getCategory_position(), "main")) {
             article.setCategory_intra(null);
         }
@@ -644,7 +644,7 @@ public class SpringBootTutorialApplication {
 
             if (toDemote != null) demoteFromBottomStrip(toDemote);
 
-            if (seatCategoryMain) bumpCategoryMain(articleId, article.getCategory());
+//            if (seatCategoryMain) bumpCategoryMain(articleId, article.getCategory());
 
             eventPublisher.publish(articleId, isUpdate ? "update" : "insert");
 
