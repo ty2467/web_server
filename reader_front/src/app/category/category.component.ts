@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
-import { Article, isOnCategoryMain, rendition } from '../layout.model';
+import { Article, rendition } from '../layout.model';
 
 // Copies, not in-place edits: the resolver hands over the same objects on
 // every emission, so rewriting image in place would stack suffixes.
@@ -47,12 +47,10 @@ export class CategoryComponent implements OnInit {
   /**
    * THE ENGINE
    *
-   * 中心 is the one editorial decision on this page: the newest
-   * 'main'-tagged article (the backend pins it to the head). With none
-   * tagged, the newest article takes it. Everything else is placed by time,
-   * from the backend's date order:
+   * Everything is placed by time, from the backend's date order:
    *
-   *   first 6  -> 栏目 (feed head)
+   *   newest   -> 中心
+   *   next 6   -> 栏目 (feed head)
    *   next 4   -> 侧
    *   the rest -> 栏目, after the head
    *
@@ -68,9 +66,8 @@ export class CategoryComponent implements OnInit {
     for (const art of rawArticles) this.articleStore.set(art.id, art);
     if (!rawArticles.length) return;
 
-    const mainIdx = rawArticles.findIndex(isOnCategoryMain);
-    const main = rawArticles[mainIdx === -1 ? 0 : mainIdx];
-    const rest = rawArticles.filter(a => a !== main); // time order preserved
+    const main = rawArticles[0];
+    const rest = rawArticles.slice(1); // time order preserved
 
     const headCount = Math.min(this.COLUMN_HEAD, Math.max(0, rest.length - this.SIDES_CAP));
     const head  = rest.slice(0, headCount);
