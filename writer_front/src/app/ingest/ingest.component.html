@@ -72,116 +72,24 @@
             <option *ngFor="let size of fontSizes" [value]="size">{{ size }}</option>
           </select>
         </div>
+        <!-- Takes the place of the per-block insert pills: media goes in at the caret. -->
+        <div class="menu-group">
+          <button type="button" [disabled]="!activeEditor" (click)="insertMedia('imageBlock')">📷</button>
+          <button type="button" [disabled]="!activeEditor" (click)="insertMedia('videoBlock')">🎥</button>
+        </div>
       </div>
 
       <hr class="editor-divider">
 
       <div class="status-msg" *ngIf="status">{{ status }}</div>
 
-      <div class="canvas"
-           cdkDropList
-           (cdkDropListDropped)="drop($event)">
-
-        <div *ngFor="let block of blocks; trackBy: trackByLocalId"
-             class="block-unit"
-             [class.first-paragraph]="block.localId === firstParagraphId"
-             cdkDrag>
-
-          <!-- The left margin is the handle: hovering into it reveals the
-              grip, hovering or editing the block itself doesn't. -->
-          <div class="drag-gutter" cdkDragHandle>
-            <span class="drag-handle">⠿</span>
-          </div>
-
-          <div *ngIf="block.type === 'paragraph'" class="tiptap-wrapper">
-            <tiptap-editor [editor]="editors.get(block.localId)!" class="editable-area"></tiptap-editor>
-            <div class="block-actions" *ngIf="(uiState.get(block.localId)?.charCount ?? 0) > 0">
-              <span class="char-count">{{ uiState.get(block.localId)?.charCount }} characters</span>
-              <button type="button" class="mini-remove" (click)="removeBlock(block.localId)">✕</button>
-            </div>
-          </div>
-
-          <div *ngIf="block.type === 'image'" class="media-container">
-            <div class="image-uploader" (click)="imgInput.click()" [class.processing]="uiState.get(block.localId)?.isUploading">
-              <img *ngIf="uiState.get(block.localId)?.previewUrl as preview" [src]="preview">
-              <div class="progress-container" *ngIf="uiState.get(block.localId)?.isUploading">
-                <div class="progress-bar" [style.width.%]="uiState.get(block.localId)?.progress"></div>
-                <span class="progress-text">{{ uiState.get(block.localId)?.progress }}%</span>
-              </div>
-              <div *ngIf="!uiState.get(block.localId)?.previewUrl && !uiState.get(block.localId)?.isUploading" class="upload-prompt">+ Add Image</div>
-            </div>
-            <div class="media-controls">
-              <div class="align-group">
-                <button type="button" title="Align caption left" [class.is-active]="alignOf(block) === 'left'" (click)="setAlign(block.localId, 'left')">←</button>
-                <button type="button" title="Align caption center" [class.is-active]="alignOf(block) === 'center'" (click)="setAlign(block.localId, 'center')">↔</button>
-                <button type="button" title="Align caption right" [class.is-active]="alignOf(block) === 'right'" (click)="setAlign(block.localId, 'right')">→</button>
-              </div>
-              <input type="text" class="caption-input" placeholder="Caption (optional)"
-                     [value]="captionOf(block)"
-                     [style.textAlign]="alignOf(block)"
-                     (input)="onCaptionInput($event, block.localId)">
-            </div>
-            <input type="file" #imgInput (change)="onImageSelected($event, block.localId)" hidden accept="image/*">
-            <button type="button" class="remove-media" (click)="removeBlock(block.localId)">✕</button>
-          </div>
-
-          <!-- VIDEO. previewUrl is the stored public URL on a reloaded
-               article and the freshly-uploaded URL otherwise, so both look
-               identical. The player is only mounted when there's something
-               to play, and stops its own clicks from reopening the picker.
-               preload="metadata" fetches the header, not the file. -->
-          <div *ngIf="block.type === 'video'" class="media-container">
-            <div class="video-uploader"
-                 [class.has-media]="uiState.get(block.localId)?.previewUrl"
-                 [class.processing]="uiState.get(block.localId)?.isUploading"
-                 (click)="vidInput.click()">
-
-              <video *ngIf="uiState.get(block.localId)?.previewUrl as src"
-                     [src]="src"
-                     class="video-preview"
-                     controls
-                     preload="metadata"
-                     (click)="$event.stopPropagation()"></video>
-
-              <div class="upload-prompt"
-                   *ngIf="!uiState.get(block.localId)?.previewUrl && !uiState.get(block.localId)?.isUploading">
-                + Select Video
-              </div>
-
-              <div class="progress-container" *ngIf="uiState.get(block.localId)?.isUploading">
-                <div class="progress-bar" [style.width.%]="uiState.get(block.localId)?.progress"></div>
-                <span class="progress-text">{{ uiState.get(block.localId)?.progress }}%</span>
-              </div>
-            </div>
-
-            <div class="media-controls" *ngIf="uiState.get(block.localId)?.previewUrl">
-              <span class="video-name">🎥 {{ fileNameOf(uiState.get(block.localId)?.previewUrl) }}</span>
-              <button type="button" class="replace-media" (click)="vidInput.click()">Replace</button>
-              <input type="text" class="caption-input" placeholder="Caption (optional)"
-                     [value]="captionOf(block)"
-                     (input)="onCaptionInput($event, block.localId)">
-            </div>
-
-            <input type="file" #vidInput (change)="onVideoSelected($event, block.localId)" hidden accept="video/*">
-            <button type="button" class="remove-media" (click)="removeBlock(block.localId)">✕</button>
-          </div>
-
-          <div class="insert-separator">
-            <div class="insert-pill">
-              <button type="button" (click)="insertBlock('paragraph', block.localId)">
-                <span class="icon">+</span> Text
-              </button>
-              <div class="v-divider"></div>
-              <button type="button" (click)="insertBlock('image', block.localId)">
-                <span class="icon">+</span> Image
-              </button>
-              <div class="v-divider"></div>
-              <button type="button" (click)="insertBlock('video', block.localId)">
-                <span class="icon">+</span> Video
-              </button>
-            </div>
-          </div>
-
+      <!-- One editor for the whole article. Paragraphs are its text; images
+           and videos are atom nodes rendered by ImageBlockComponent /
+           VideoBlockComponent, which carry the media markup that used to
+           live here. -->
+      <div class="canvas">
+        <div class="tiptap-wrapper">
+          <tiptap-editor [editor]="editor" class="editable-area"></tiptap-editor>
         </div>
       </div>
 
@@ -259,9 +167,9 @@
 
       <div class="editor-actions">
         <div class="toolbar-inline">
-          <button type="button" (click)="insertBlock('paragraph', lastBlockId)">¶ Text</button>
-          <button type="button" (click)="insertBlock('image', lastBlockId)">📷 Image</button>
-          <button type="button" (click)="insertBlock('video', lastBlockId)">🎥 Video</button>
+          <button type="button" (click)="appendBlock('paragraph')">¶ Text</button>
+          <button type="button" (click)="appendBlock('imageBlock')">📷 Image</button>
+          <button type="button" (click)="appendBlock('videoBlock')">🎥 Video</button>
         </div>
         <button type="submit" class="submit-btn" [class.success-state]="isSuccess"
                 [disabled]="metaForm.invalid || isSubmitting || isSuccess || isAnyBlockUploading">

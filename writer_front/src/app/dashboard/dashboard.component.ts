@@ -80,6 +80,7 @@ export class DashboardComponent implements OnInit {
     [...new Set(this.articles().map(a => a.category).filter(Boolean))].sort()
   );
 
+
   /** search base -> filters. Recomputes when either side changes. */
   readonly visibleArticles = computed(() => {
     const min = this.idMin();

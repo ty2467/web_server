@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, Injector } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule, FormGroup, FormControl, Validators,
@@ -6,29 +6,26 @@ import {
 } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Params, Router } from '@angular/router';
-import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
+import { Subject } from 'rxjs';
 
 import { TiptapEditorDirective } from 'ngx-tiptap';
-import { Editor, Extensions, JSONContent } from '@tiptap/core';
+import { Editor, Extension, Extensions, JSONContent } from '@tiptap/core';
 import { TextStyle, FontSize } from '@tiptap/extension-text-style';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
+import { Slice, Fragment, Node as PMNode, DOMParser as PMDOMParser } from '@tiptap/pm/model';
 
-import {
-  Block, ParagraphBlock, BlockType, BlockUIState, ImageAlign,
-  emptyUIState, newBlock, blockToDto, dtoToBlock, isParagraph
-} from './ingest-block.model';
+import { BlockUIState, emptyUIState } from './ingest-block.model';
 import { clipboardImageFile, textLinesToHtml, preparePastedHtml, imageMarkerIndex, ImageSeed } from './paste.util';
-import { Slice, DOMParser as PMDOMParser } from '@tiptap/pm/model';
 import { MediaUploadService } from './media-upload.service';
+import { ImageBlock, VideoBlock, MediaHost } from './media-nodes';
 
 /** 位置 — the three mutually-exclusive fronts. 栏目 is not one of these. */
 export type ZoneFront = 'super_main' | 'main' | 'sub_main' | 'tertiary';
 
-import { Selection } from '@tiptap/pm/state';
-import { canJoin } from '@tiptap/pm/transform';
+type MediaNodeType = 'imageBlock' | 'videoBlock';
 
 
 /**
@@ -42,29 +39,62 @@ function zonePicked(g: AbstractControl): ValidationErrors | null {
   return (g.get('front')?.value || g.get('in_column')?.value) ? null : { zoneRequired: true };
 }
 
+/**
+ * Tab never leaves the editor (the browser default moves focus to the next
+ * control). In a list it indents/outdents the item; elsewhere Tab writes a
+ * tab character at the caret and Shift+Tab does nothing. Priority above
+ * ListItem's own Tab binding so this owns the key outright.
+ */
+const TabKeys = Extension.create({
+  name: 'tabKeys',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => {
+        if (this.editor.isActive('listItem')) {
+          this.editor.commands.sinkListItem('listItem');
+          return true;
+        }
+        const { view, state } = this.editor;
+        view.dispatch(state.tr.insertText('\t').scrollIntoView());
+        return true;
+      },
+      'Shift-Tab': () => {
+        if (this.editor.isActive('listItem')) this.editor.commands.liftListItem('listItem');
+        return true;
+      }
+    };
+  }
+});
+
 @Component({
   selector: 'app-ingest',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TiptapEditorDirective, DragDropModule],
+  imports: [CommonModule, ReactiveFormsModule, TiptapEditorDirective],
   templateUrl: './ingest.component.html',
   styleUrls: ['./ingest.component.css']
 })
-export class IngestComponent implements OnInit, OnDestroy {
+export class IngestComponent implements OnInit, OnDestroy, MediaHost {
   metaForm!: FormGroup;
   status = '';
   isSuccess = false;
   isSubmitting = false;
   editingId: string | null = null;
 
-  // ---- Canonical content model + its two localId-keyed projections ----
-  blocks: Block[] = [];
-  editors: Map<string, Editor> = new Map();
+  // ---- One document for the whole article. Paragraphs, headings and lists
+  // are ordinary ProseMirror nodes; image/video are atom nodes whose attrs
+  // carry exactly what a content_blocks media entry carries. ----
+  editor!: Editor;
+
+  // Upload state that is not article content (progress, preview, the File),
+  // keyed by the media node's attrs.localId. Node views read it; uiChanged
+  // tells the one node view whose state moved to re-render.
   uiState: Map<string, BlockUIState> = new Map();
+  readonly uiChanged = new Subject<string>();
 
-  activeLocalId: string | null = null;
-
+  /** Kept for the toolbar bindings: there is only one editor now. */
   get activeEditor(): Editor | null {
-    return this.activeLocalId ? this.editors.get(this.activeLocalId) ?? null : null;
+    return this.editor ?? null;
   }
 
   // Lead image — article-level metadata, like title/author/category, NOT a
@@ -158,6 +188,7 @@ export class IngestComponent implements OnInit, OnDestroy {
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private injector = inject(Injector);
 
   constructor(
     private http: HttpClient,
@@ -168,7 +199,7 @@ export class IngestComponent implements OnInit, OnDestroy {
    ngOnInit() {
      // Only scalar, fixed-shape fields live in Reactive F ms. content_blocks
      // is dynamic and index-sensitive in a way FormArray actively fights —
-     // it stays a plain array, assembled into the payload at submit time.
+     // it stays out of the form, assembled into the payload at submit time.
      this.metaForm = new FormGroup({
        id: new FormControl<number | null>(null),
        title: new FormControl('', [Validators.required]),
@@ -197,8 +228,20 @@ export class IngestComponent implements OnInit, OnDestroy {
      this.applyCategoryLock();
      this.syncCategoryIntraValidity();
 
+     this.editor = new Editor({
+       extensions: [
+         ...this.extensions,
+         TabKeys,
+         ImageBlock.configure({ host: this, injector: this.injector }),
+         VideoBlock.configure({ host: this, injector: this.injector })
+       ],
+       content: { type: 'doc', content: [{ type: 'paragraph' }] },
+       editorProps: {
+         handlePaste: (view: any, event: ClipboardEvent) => this.handlePaste(view, event)
+       }
+     });
+
      this.route.queryParams.subscribe((params: Params) => {
-       this.clearAllBlocks();
        const idFromUrl = params['edit'];
        if (idFromUrl) {
          this.editingId = idFromUrl;
@@ -207,13 +250,13 @@ export class IngestComponent implements OnInit, OnDestroy {
          this.editingId = null;
          this.resetMetaForm();
          this.leadImagePreview = null;
-         this.insertBlock('paragraph', null);
+         this.loadContent([]);
        }
      });
    }
 
   ngOnDestroy() {
-    this.editors.forEach(ed => ed.destroy());
+    this.editor?.destroy();
   }
 
    private readonly BOTTOM_STRIP = ['天天話題', '美國觀察', '中美關係'];
@@ -383,231 +426,113 @@ export class IngestComponent implements OnInit, OnDestroy {
    readonly categories: string[] = ['美洲頭條', '天天話題', '美國觀察', '中美關係',
      '工商新聞', '出海專區', 'CES消費電子展', '美洲台探訪', '商務合作',];
 
-  get lastBlockId(): string | null {
-    return this.blocks.length ? this.blocks[this.blocks.length - 1].localId : null;
-  }
-
-  get firstParagraphId(): string | null {
-    return this.blocks.find(isParagraph)?.localId ?? null;
-  }
-
   // ===========================================================================
-  // Reconciliation — the ONLY methods allowed to mutate `blocks`, `editors`,
-  // or `uiState`. Paste, typing, uploads, and drag/drop all route through
-  // these instead of touching the three structures directly.
+  // content_blocks <-> document. The wire format is a flat list of six-key
+  // entries (type is the discriminant; fields that don't apply are null).
+  // The document is a flat list of top-level nodes. These two functions are
+  // the only places that know both shapes.
   // ===========================================================================
 
-  private findIndex(localId: string): number {
-    return this.blocks.findIndex(b => b.localId === localId);
-  }
-
-  findBlock(localId: string): Block | undefined {
-    return this.blocks.find(b => b.localId === localId);
-  }
-
-  insertBlock(type: BlockType, afterLocalId: string | null, seed?: { json?: JSONContent; url?: string; caption?: string; align?: ImageAlign }): Block {
-    const block = newBlock(type, 0, seed);
-    const insertAt = afterLocalId ? this.findIndex(afterLocalId) + 1 : this.blocks.length;
-    this.blocks.splice(insertAt, 0, block);
-
-    this.uiState.set(block.localId, {
-      ...emptyUIState(),
-      previewUrl: isParagraph(block) ? null : (block.url || null),
-      charCount: isParagraph(block) ? this.textLength(block.json) : 0
-    });
-
-    if (isParagraph(block)) {
-      this.mountEditor(block);
+  /** Stored entries -> one doc. Paragraph entries drop their per-entry doc wrapper. */
+  private contentBlocksToDoc(dtos: any[]): JSONContent {
+    const content: JSONContent[] = [];
+    for (const dto of [...dtos].sort((a, b) => a.order_id - b.order_id)) {
+      if (dto.type === 'image' || dto.type === 'video') {
+        const localId = crypto.randomUUID();
+        this.uiState.set(localId, { ...emptyUIState(), previewUrl: dto.media_url || null });
+        // Same defaults dtoToBlock applied, so an entry saves back exactly as blockToDto wrote it.
+        content.push({
+          type: dto.type === 'image' ? 'imageBlock' : 'videoBlock',
+          attrs: { localId, url: dto.media_url ?? '', caption: dto.caption ?? '', align: dto.align ?? 'center' }
+        });
+      } else {
+        content.push(...(dto.content_json?.content ?? []));
+      }
     }
-
-    this.reindex();
-    this.cdr.detectChanges();
-    return block;
+    return { type: 'doc', content: content.length ? content : [{ type: 'paragraph' }] };
   }
 
-  removeBlock(localId: string) {
-    const idx = this.findIndex(localId);
-    if (idx === -1) return;
+  /** One doc -> stored entries. Every non-media node goes out as a paragraph entry, re-wrapped. */
+  private docToContentBlocks(doc: JSONContent): any[] {
+    return (doc.content ?? []).map((node, i) => {
+      const media = node.type === 'imageBlock' || node.type === 'videoBlock';
+      return {
+        align:        media ? node.attrs?.['align'] ?? 'center' : null,
+        caption:      media ? node.attrs?.['caption'] || null : null,
+        content_json: media ? null : { type: 'doc', content: [node] },
+        media_url:    media ? node.attrs?.['url'] ?? '' : null,
+        order_id:     i,
+        type:         node.type === 'imageBlock' ? 'image' : node.type === 'videoBlock' ? 'video' : 'paragraph'
+      };
+    });
+  }
 
-    this.editors.get(localId)?.destroy();
-    this.editors.delete(localId);
-    this.uiState.delete(localId);
-    this.blocks.splice(idx, 1);
+  /**
+   * Replaces the whole document without an undo step: Ctrl+Z after opening
+   * an article must not undo the load back to a blank page.
+   */
+  private loadContent(dtos: any[]) {
+    this.uiState.clear();
+    const doc = this.editor.schema.nodeFromJSON(this.contentBlocksToDoc(dtos));
+    const { state, view } = this.editor;
+    view.dispatch(state.tr.replaceWith(0, state.doc.content.size, doc.content).setMeta('addToHistory', false));
+    this.cdr.detectChanges();
+  }
 
-    // Never let the canvas go fully empty — nothing to click into, nowhere
-    // for a cursor to land. insertBlock already reindexes/detects changes,
-    // so return rather than doing it twice.
-    if (this.blocks.length === 0) {
-      const fresh = this.insertBlock('paragraph', null);
-      setTimeout(() => this.focusBlock(fresh.localId), 10);
+  // ===========================================================================
+  // Media nodes
+  // ===========================================================================
+
+  /** Tells the media node view for localId (and this component) to re-render. */
+  private touch(localId: string) {
+    this.uiChanged.next(localId);
+    this.cdr.detectChanges();
+  }
+
+  /** A media node's attrs with newBlock's defaults; registers its upload state. */
+  private newMediaAttrs(attrs: { url?: string; caption?: string; align?: string } = {}) {
+    const localId = crypto.randomUUID();
+    this.uiState.set(localId, { ...emptyUIState(), previewUrl: attrs.url || null });
+    return { localId, url: '', caption: '', align: 'center', ...attrs };
+  }
+
+  /** Inserts a media node at the selection; returns its localId. */
+  private insertMediaNode(type: MediaNodeType, attrs: { url?: string; caption?: string; align?: string } = {}): string {
+    const a = this.newMediaAttrs(attrs);
+    this.editor.commands.insertContent({ type, attrs: a });
+    return a.localId;
+  }
+
+  /** Menu bar: an empty image/video node at the caret, showing its picker. */
+  insertMedia(type: MediaNodeType) {
+    this.editor.commands.focus();
+    this.insertMediaNode(type);
+  }
+
+  /** Bottom toolbar: a new node at the end of the article. */
+  appendBlock(type: 'paragraph' | MediaNodeType) {
+    const end = this.editor.state.doc.content.size;
+    if (type === 'paragraph') {
+      this.editor.chain().insertContentAt(end, { type: 'paragraph' }).focus('end').run();
       return;
     }
-
-    this.reindex();
-    this.cdr.detectChanges();
+    this.editor.commands.insertContentAt(end, { type, attrs: this.newMediaAttrs() });
   }
 
-  moveBlock(previousIndex: number, currentIndex: number) {
-    if (previousIndex === currentIndex) return;
-    moveItemInArray(this.blocks, previousIndex, currentIndex);
-    this.reindex();
-    this.cdr.detectChanges();
-  }
-
-  private reindex() {
-    this.blocks.forEach((b, i) => (b.orderId = i));
-  }
-
-  private clearAllBlocks() {
-    this.editors.forEach(ed => ed.destroy());
-    this.editors.clear();
-    this.uiState.clear();
-    this.blocks = [];
-    this.activeLocalId = null;
-  }
-  private textLength(json: JSONContent): number {
-    let len = 0;
-    const walk = (node: JSONContent) => {
-      if (node.type === 'text') len += (node.text ?? '').length;
-      (node.content ?? []).forEach(walk);
-    };
-    walk(json);
-    return len;
-  }
-
-  // ===========================================================================
-  // Tiptap wiring — JSON in at mount, JSON out on every update. No HTML
-  // round-trip. The Editor is disposable; block.json is not.
-  // ===========================================================================
-
-  private mountEditor(block: ParagraphBlock) {
-   const editor = new Editor({
-     extensions: this.extensions,
-     content: block.json,
-     onFocus: () => { this.activeLocalId = block.localId; },
-     onUpdate: ({ editor }) => {
-       const current = this.findBlock(block.localId);
-       if (current && isParagraph(current)) {
-         current.json = editor.getJSON();
-         const state = this.uiState.get(block.localId);
-         if (state) state.charCount = editor.getText().length;
-       }
-     },
-     editorProps: {
-       // `view`/`event` typed loosely here — exact ProseMirror view import
-       // path can shift between Tiptap versions; the shape used is stable.
-       handleKeyDown: (view: any, event: KeyboardEvent) =>
-         this.handleEditorKeyDown(block.localId, view, event),
-       handlePaste: (view: any, event: ClipboardEvent) =>
-         this.handlePaste(view, event, block.localId)
-     }
-   });
-   this.editors.set(block.localId, editor);
-  }
-
-    private handleEditorKeyDown(localId: string, view: any, event: KeyboardEvent): boolean {
-      // IME: while composing, Enter commits the candidate and Backspace edits
-      // the pinyin buffer. Both belong to the input method. (229 = Safari.)
-      if (event.isComposing || event.keyCode === 229) return false;
-
-      if (event.key === 'Enter' && !event.shiftKey) {
-        const { state } = view;
-        const { from, to } = state.selection;
-        // New paragraph right after this one, carrying whatever sits after the
-        // caret. Caret at the end -> the tail is empty -> a plain new paragraph.
-        const tail = state.doc.cut(to);
-        view.dispatch(state.tr.delete(from, state.doc.content.size));
-        const created = this.insertBlock('paragraph', localId, { json: tail.toJSON() });
-        setTimeout(() => this.focusBlock(created.localId, 'start'), 10);
-        return true;
-      }
-
-      if (event.key === 'Backspace') {
-        const { selection, doc } = view.state;
-        // Only at index 0 of this block with nothing selected. Every other
-        // Backspace is ordinary character deletion and stays ProseMirror's.
-        if (!selection.empty || selection.from !== Selection.atStart(doc).from) return false;
-
-        const prev = this.blocks[this.findIndex(localId) - 1];
-        if (!prev) return false;
-
-        if (isParagraph(prev)) {
-          const prevEditor = this.editors.get(prev.localId);
-          if (!prevEditor) return false;
-
-          // Append this block's nodes after prev's last node, then join across
-          // that boundary so the two paragraphs become one. The caret goes to
-          // the seam: the old end of prev's text.
-          // Each Editor has its own Schema, so the nodes are rebuilt in prev's
-          // schema first. Foreign node types are silently dropped by insert.
-          const end = prevEditor.state.doc.content.size;
-          const moved = prevEditor.schema.nodeFromJSON(doc.toJSON()).content;
-          let tr = prevEditor.state.tr.insert(end, moved);
-          const joined = canJoin(tr.doc, end);
-          if (joined) tr = tr.join(end);
-          tr.setSelection(Selection.near(tr.doc.resolve(joined ? end - 1 : end)));
-          prevEditor.view.dispatch(tr);   // prev's onUpdate refreshes prev.json
-
-          this.removeBlock(localId);
-          setTimeout(() => prevEditor.commands.focus(), 10);  // no arg = keep the seam selection
-          return true;
-        }
-
-        // Previous block is image/video: same as before, an empty paragraph
-        // after it is removed and a non-empty one is left alone.
-        if (doc.textContent.length === 0) {
-          this.removeBlock(localId);
-          setTimeout(() => this.focusBlock(prev.localId), 10);
-          return true;
-        }
-      }
-
-      // Up at index 0 -> nearest paragraph above, at its index -1.
-      // Down at index -1 -> nearest paragraph below, at its index 0.
-      // Image/video blocks in between are skipped. Shift+Arrow is left to
-      // ProseMirror as in-block selection.
-      if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !event.shiftKey) {
-        const { selection, doc } = view.state;
-        const up = event.key === 'ArrowUp';
-        const edge = up ? Selection.atStart(doc).from : Selection.atEnd(doc).from;
-        if (!selection.empty || selection.from !== edge) return false;
-
-        const step = up ? -1 : 1;
-        for (let i = this.findIndex(localId) + step; i >= 0 && i < this.blocks.length; i += step) {
-          const target = this.blocks[i];
-          if (isParagraph(target)) {
-            this.focusBlock(target.localId, up ? 'end' : 'start');
-            return true;
-          }
-        }
-        return false;
-      }
-
-      // Tab never leaves the editor (the browser default moves focus to the
-      // next control). In a list it indents/outdents the item; elsewhere Tab
-      // writes a tab character at the caret and Shift+Tab does nothing.
-      if (event.key === 'Tab') {
-        const editor = this.editors.get(localId);
-        if (!editor) return false;
-        if (editor.isActive('listItem')) {
-          if (event.shiftKey) editor.commands.liftListItem('listItem');
-          else editor.commands.sinkListItem('listItem');
-        } else if (!event.shiftKey) {
-          view.dispatch(view.state.tr.insertText('\t').scrollIntoView());
-        }
-        return true;
-      }
-
+  /**
+   * Writes attrs onto the media node with this localId, wherever it has
+   * moved to. Kept out of history: undoing must not revert an upload's URL.
+   */
+  private setMediaAttrs(localId: string, attrs: Record<string, any>) {
+    const { state, view } = this.editor;
+    let found = false;
+    state.doc.descendants((node, pos) => {
+      if (found) return false;
+      if (node.attrs['localId'] !== localId) return true;
+      view.dispatch(state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs }).setMeta('addToHistory', false));
+      found = true;
       return false;
-    }
-
-  focusBlock(localId: string, position: 'start' | 'end' = 'start') {
-    const editor = this.editors.get(localId);
-    if (editor) {
-      editor.commands.focus(position);
-    } else {
-      setTimeout(() => this.editors.get(localId)?.commands.focus(position), 50);
-    }
+    });
   }
 
   setLink(editor: Editor) {
@@ -631,120 +556,89 @@ export class IngestComponent implements OnInit, OnDestroy {
   }
 
   // ===========================================================================
-  // Paste — fully buffered. parseClipboardToBlockSeeds is pure and returns
-  // real ProseMirror JSON for text plus flags for images that still need a
-  // network round trip (a remote URL, or raw file data from the clipboard).
+  // Paste. Content copied out of this editor carries ProseMirror's
+  // data-pm-slice marker and goes through ProseMirror's own paste, which
+  // parses media back via the nodes' parseHTML. Everything else goes through
+  // preparePastedHtml: image markers become imageBlock nodes in the same
+  // slice, so the whole paste is one transaction (one undo).
   // ===========================================================================
 
-   handlePaste(view: any, event: ClipboardEvent, localId: string): boolean {
-     // Raw image bytes: exclusive, one image block after this one.
+   handlePaste(view: any, event: ClipboardEvent): boolean {
+     // Raw image bytes: exclusive, one image node at the caret.
      const file = clipboardImageFile(event);
      if (file) {
-       const block = this.insertBlock('image', localId, { url: '', caption: '' });
-       this.resolvePastedImage(block.localId, file, null);
+       const localId = this.insertMediaNode('imageBlock', { url: '', caption: '' });
+       this.resolvePastedImage(localId, file, null);
        return true;
      }
 
      const dt = event.clipboardData;
-     const raw = dt?.getData('text/html') || textLinesToHtml(dt?.getData('text/plain') ?? '');
+     const clipHtml = dt?.getData('text/html') ?? '';
+     if (clipHtml.includes('data-pm-slice')) return false;
+
+     const raw = clipHtml || textLinesToHtml(dt?.getData('text/plain') ?? '');
      if (!raw) return false;
 
-     // Images out (markers in their place), then ONE parse for the paragraphs:
-     // inline content stays in the open paragraph, only block-level markup
-     // opens the next. The parsed slice is left open at both ends.
      const { html, images } = preparePastedHtml(raw);
      const dom = new DOMParser().parseFromString(html, 'text/html').body;
-     let slice = PMDOMParser.fromSchema(view.state.schema).parseSlice(dom);
+     const parsed = PMDOMParser.fromSchema(view.state.schema).parseSlice(dom);
 
-     // An image at either edge must not merge into the caret's paragraph:
-     // close that edge so the marker lands as a node of its own.
-     const c = slice.content;
-     slice = new Slice(
-       c,
-       imageMarkerIndex(c.firstChild) !== null ? 0 : slice.openStart,
-       imageMarkerIndex(c.lastChild) !== null ? 0 : slice.openEnd
+     // Markers -> imageBlock nodes. Empty paragraphs between other content
+     // (source spacing) are dropped; the edge ones are kept, since those
+     // merge into the caret's paragraph.
+     const schema = view.state.schema;
+     const pending: { localId: string; seed: ImageSeed }[] = [];
+     const nodes: PMNode[] = [];
+     const last = parsed.content.childCount - 1;
+     parsed.content.forEach((node: PMNode, _offset: number, i: number) => {
+       const k = imageMarkerIndex(node);
+       if (k !== null) {
+         const seed = images[k];
+         if (!seed) return;
+         const localId = crypto.randomUUID();
+         pending.push({ localId, seed });
+         nodes.push(schema.nodes['imageBlock'].create({
+           localId, url: seed.remoteUrl ?? '', caption: seed.caption ?? '', align: 'center'
+         }));
+         return;
+       }
+       if (node.type.name === 'paragraph' && node.content.size === 0 && i !== 0 && i !== last) return;
+       nodes.push(node);
+     });
+     if (!nodes.length) return true;
+
+     // An edge that is now an image (or no longer the parsed edge) is closed,
+     // so the image lands as a node of its own instead of merging into the
+     // caret's paragraph.
+     const slice = new Slice(
+       Fragment.from(nodes),
+       nodes[0] === parsed.content.firstChild ? parsed.openStart : 0,
+       nodes[nodes.length - 1] === parsed.content.lastChild ? parsed.openEnd : 0
      );
 
-     // Assume it belongs in the current paragraph: write at the caret,
-     // replacing any selection. The paste/uiEvent metas are what ProseMirror
-     // sets on its own pastes; Tiptap's paste rules key off them.
+     for (const p of pending) {
+       this.uiState.set(p.localId, { ...emptyUIState(), previewUrl: p.seed.remoteUrl || null });
+     }
+
+     // The paste/uiEvent metas are what ProseMirror sets on its own pastes;
+     // Tiptap's paste rules key off them.
      const tr = view.state.tr.replaceSelection(slice).scrollIntoView();
      tr.setMeta('paste', true).setMeta('uiEvent', 'paste');
      view.dispatch(tr);
 
-     this.splitTopLevel(localId, images);
+     for (const p of pending) this.resolvePastedImage(p.localId, p.seed.sourceFile, p.seed.remoteUrl);
      return true;
    }
 
-   /**
-    * One block per top-level node. Image markers become image blocks; empty
-    * paragraphs (source spacing) are dropped except the one holding the
-    * caret. This block keeps the first node if it's a paragraph, and is
-    * replaced otherwise, since a paragraph block can't become an image.
-    */
-   private splitTopLevel(localId: string, images: ImageSeed[]) {
-     const editor = this.editors.get(localId);
-     if (!editor) return;
-     const { doc, selection } = editor.state;
-     if (doc.childCount === 1 && imageMarkerIndex(doc.firstChild) === null) return;
 
-     // Caret as (top-level index, offset inside that node). A node moved into
-     // a fresh doc starts at position 0, so the offset carries over unchanged.
-     const caretIndex = selection.$head.index(0);
-     let caretNodeStart = 0;
-     for (let i = 0; i < caretIndex; i++) caretNodeStart += doc.child(i).nodeSize;
-     const caretOffset = selection.head - caretNodeStart;
-
-     type Part =
-       | { kind: 'image'; seed: ImageSeed }
-       | { kind: 'paragraph'; json: JSONContent; caret: boolean };
-     const parts: Part[] = [];
-     doc.forEach((node, _offset, i) => {
-       const k = imageMarkerIndex(node);
-       if (k !== null) {
-         if (images[k]) parts.push({ kind: 'image', seed: images[k] });
-         return;
-       }
-       if (node.content.size === 0 && i !== caretIndex) return;
-       parts.push({ kind: 'paragraph', json: node.toJSON(), caret: i === caretIndex });
-     });
-
-     const first = parts[0];
-     const keepHere = first?.kind === 'paragraph';
-     if (keepHere) {
-       // A transaction, so onUpdate refreshes block.json.
-       const node = editor.schema.nodeFromJSON(first.json);
-       editor.view.dispatch(editor.state.tr.replaceWith(0, doc.content.size, node));
-     }
-
-     let anchor = localId;
-     let caretLocalId: string | null = keepHere && first.caret ? localId : null;
-     for (const part of parts.slice(keepHere ? 1 : 0)) {
-       if (part.kind === 'image') {
-         const b = this.insertBlock('image', anchor, { url: part.seed.remoteUrl ?? '', caption: part.seed.caption ?? '' });
-         this.resolvePastedImage(b.localId, part.seed.sourceFile, part.seed.remoteUrl);
-         anchor = b.localId;
-       } else {
-         const b = this.insertBlock('paragraph', anchor, { json: { type: 'doc', content: [part.json] } });
-         if (part.caret) caretLocalId = b.localId;
-         anchor = b.localId;
-       }
-     }
-     if (!keepHere) this.removeBlock(localId);
-
-     const target = caretLocalId ?? anchor;
-     setTimeout(() => this.editors.get(target)?.commands.focus(caretLocalId ? caretOffset : 'end'), 10);
-  }
-
-
-  // Lazy image resolution: the block is already visible (with a temporary
+  // Lazy image resolution: the node is already visible (with a temporary
   // preview) before any network activity resolves.
   private async resolvePastedImage(localId: string, sourceFile: File | null, remoteUrl: string | null) {
     const state = this.uiState.get(localId);
     if (!state) return;
     try {
       state.isUploading = true;
-      this.cdr.detectChanges();
+      this.touch(localId);
 
       let url: string;
 
@@ -752,37 +646,36 @@ export class IngestComponent implements OnInit, OnDestroy {
         // Clipboard bytes — already ours, existing path.
         state.file = sourceFile;
         const reader = new FileReader();
-        reader.onload = () => { state.previewUrl = reader.result as string; this.cdr.detectChanges(); };
+        reader.onload = () => { state.previewUrl = reader.result as string; this.touch(localId); };
         reader.readAsDataURL(sourceFile);
 
         url = await this.mediaUpload.uploadImage(sourceFile, pct => {
           state.progress = pct;
-          this.cdr.detectChanges();
+          this.touch(localId);
         });
       } else if (remoteUrl) {
         // Foreign URL — the browser won't let us read those bytes, so the
         // server fetches them. Preview stays on the remote URL until it
         // resolves; <img> can load what fetch() can't.
         state.previewUrl = remoteUrl;
-        this.cdr.detectChanges();
+        this.touch(localId);
         url = await this.mediaUpload.uploadImageFromUrl(remoteUrl);
         state.previewUrl = url;
       } else {
         return;
       }
 
-      const block = this.findBlock(localId);
-      if (block && !isParagraph(block)) block.url = url;
+      this.setMediaAttrs(localId, { url });
       this.status = '';
     } catch (err: any) {
       this.status = 'Image paste failed: ' + (err?.error?.error || err?.message || err?.statusText || 'unknown error');
     } finally {
       state.isUploading = false;
-      this.cdr.detectChanges();
+      this.touch(localId);
     }
   }
   // ===========================================================================
-  // Lead image — article-level, singular, lives in metaForm not blocks[].
+  // Lead image — article-level, singular, lives in metaForm not the document.
   // ===========================================================================
 
   onLeadImageSelected(event: Event) {
@@ -818,7 +711,7 @@ export class IngestComponent implements OnInit, OnDestroy {
   }
 
   // ===========================================================================
-  // Direct media selection (file inputs)
+  // Direct media selection (file inputs inside the media node views)
   // ===========================================================================
 
   onImageSelected(event: Event, localId: string) {
@@ -834,22 +727,21 @@ export class IngestComponent implements OnInit, OnDestroy {
     state.file = file;
     state.isUploading = true;
     const reader = new FileReader();
-    reader.onload = () => { state.previewUrl = reader.result as string; this.cdr.detectChanges(); };
+    reader.onload = () => { state.previewUrl = reader.result as string; this.touch(localId); };
     reader.readAsDataURL(file);
 
     try {
       const url = await this.mediaUpload.uploadImage(file, pct => {
         state.progress = pct;
-        this.cdr.detectChanges();
+        this.touch(localId);
       });
-      const block = this.findBlock(localId);
-      if (block && !isParagraph(block)) block.url = url;
+      this.setMediaAttrs(localId, { url });
       this.status = '';
     } catch (err: any) {
       this.status = 'Upload failed: ' + (err?.message || err?.statusText || 'unknown error');
     } finally {
       state.isUploading = false;
-      this.cdr.detectChanges();
+      this.touch(localId);
     }
   }
 
@@ -866,13 +758,12 @@ export class IngestComponent implements OnInit, OnDestroy {
     try {
       const url = await this.mediaUpload.uploadVideoChunked(file, pct => {
         state.progress = pct;
-        this.cdr.detectChanges();
+        this.touch(localId);
       });
-      const block = this.findBlock(localId);
-      if (block && !isParagraph(block)) block.url = url;
+      this.setMediaAttrs(localId, { url });
 
       // Point the preview at the uploaded file's public URL, exactly as a
-      // reloaded block does. Without this a just-uploaded video renders
+      // reloaded node does. Without this a just-uploaded video renders
       // differently from the same video after a page reload.
       state.previewUrl = url;
       this.status = '';
@@ -880,17 +771,8 @@ export class IngestComponent implements OnInit, OnDestroy {
       this.status = 'Video upload failed: ' + (err?.message || err?.statusText || 'unknown error');
     } finally {
       state.isUploading = false;
-      this.cdr.detectChanges();
+      this.touch(localId);
     }
-  }
-
-  // ===========================================================================
-  // Drag/drop — only the order changes. editors/uiState are keyed by
-  // localId, so they never need remapping when position changes.
-  // ===========================================================================
-
-  drop(event: CdkDragDrop<Block[]>) {
-    this.moveBlock(event.previousIndex, event.currentIndex);
   }
 
   // ===========================================================================
@@ -922,36 +804,9 @@ export class IngestComponent implements OnInit, OnDestroy {
        this.leadImagePreview = data.lead_image_url || null;
        this.applyCategoryLock();
 
-       // ... unchanged from here
-
-      this.clearAllBlocks();
-
-      const dtos = (data.content_blocks ?? []).slice()
-        .sort((a: any, b: any) => a.order_id - b.order_id);
-
-      if (dtos.length > 0) {
-        for (const dto of dtos) {
-          const block = dtoToBlock(dto);
-          this.blocks.push(block);
-          this.uiState.set(block.localId, {
-            ...emptyUIState(),
-            // Images AND videos: previewUrl is the stored public URL. The
-            // bytes were never lost — media_url survives the round trip in
-            // content_blocks. The video simply had no template branch that
-            // read it, so it rendered as an empty picker.
-            previewUrl: isParagraph(block) ? null : (block.url || null),
-            charCount: isParagraph(block) ? this.textLength(block.json) : 0
-          });
-          if (isParagraph(block)) this.mountEditor(block);
-        }
-        this.reindex();
-      } else {
-        this.insertBlock('paragraph', null);
-      }
-
-      this.cdr.detectChanges();
-    });
-  }
+       this.loadContent(data.content_blocks ?? []);
+     });
+   }
 
    submit() {
      if (!this.metaForm.valid) return;
@@ -967,7 +822,7 @@ export class IngestComponent implements OnInit, OnDestroy {
        ...meta,
        section_zone: this.buildSectionZone(),
        category_position: this.buildCategoryPosition(),
-       content_blocks: this.blocks.map(blockToDto)
+       content_blocks: this.docToContentBlocks(this.editor.getJSON())
      };
 
      this.http.post(this.API_URL, payload).subscribe({
@@ -981,7 +836,7 @@ export class IngestComponent implements OnInit, OnDestroy {
            this.isSubmitting = false;
            if (this.editingId) {
              // Dropping ?edit fires the queryParams subscription, which
-             // already clears blocks/meta and nulls editingId.
+             // already clears the document/meta and nulls editingId.
              this.router.navigate([], { relativeTo: this.route, queryParams: {} });
            } else {
              this.resetForm();
@@ -997,39 +852,9 @@ export class IngestComponent implements OnInit, OnDestroy {
    }
 
   private resetForm() {
-    this.clearAllBlocks();
     this.resetMetaForm();
     this.leadImagePreview = null;
-    this.insertBlock('paragraph', null);
-  }
-
-  trackByLocalId(_index: number, block: Block) {
-    return block.localId;
-  }
-
-  captionOf(block: Block): string {
-    return isParagraph(block) ? '' : block.caption;
-  }
-
-  onCaptionInput(event: Event, localId: string) {
-    const value = (event.target as HTMLInputElement).value;
-    const block = this.findBlock(localId);
-    if (block && !isParagraph(block)) block.caption = value;
-  }
-
-  alignOf(block: Block): ImageAlign {
-    return isParagraph(block) ? 'center' : block.align;
-  }
-
-  setAlign(localId: string, align: ImageAlign) {
-    const block = this.findBlock(localId);
-    if (block && !isParagraph(block)) block.align = align;
-  }
-
-  /** Filename tail of a stored media URL, for the video block's label. */
-  fileNameOf(url: string | null | undefined): string {
-    if (!url) return '';
-    return url.substring(url.lastIndexOf('/') + 1);
+    this.loadContent([]);
   }
 
   get isAnyBlockUploading(): boolean {
