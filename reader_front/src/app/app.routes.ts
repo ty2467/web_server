@@ -6,7 +6,7 @@ import { HomeComponent } from './home/home.component';
 import { CategoryComponent } from './category/category.component';
 import { ArticleDetailComponent } from './articlepage/app-article-detail.component';
 import { Article } from './articlepage/article.model';
-import { catchError, map, of } from 'rxjs';
+import { catchError, map, of, switchMap } from 'rxjs';
 import { AboutComponent } from './about/about.component';
 import { StaticPageComponent } from './static-page/static-page.component';
 import { ContactComponent } from './contact/contact.component';
@@ -48,24 +48,34 @@ export const routes: Routes = [
         )
     }
   },
-  {
-    path: 'article/:slug',
-    component: ArticleDetailComponent,
-    resolve: {
-      // ArticleDetailController returns the Article shape directly — no
-      // wrapper key to unwrap, unlike /api/home-page's { articlePool }.
-      // Typed explicitly as Article: the object established in
-      // article.model.ts is what flows through the resolver into the
-      // component, not an untyped stand-in the component has to cast.
-      article: (route: ActivatedRouteSnapshot) =>
-        inject(HttpClient).get<Article>(`/api/articles/${route.paramMap.get('slug')}`).pipe(
-          catchError(err => {
-            console.error('article resolve failed', err);
-            return of(null);
-          })
-        )
-    }
-  },
+   {
+     path: 'article/:slug',
+     component: ArticleDetailComponent,
+     resolve: {
+       // ArticleDetailController returns the Article shape directly — no
+       // wrapper key to unwrap, unlike /api/home-page's { articlePool }.
+       // Typed explicitly as Article: the object established in
+       // article.model.ts is what flows through the resolver into the
+       // component, not an untyped stand-in the component has to cast.
+       // The view is recorded first so the fetched viewCount includes
+       // this visit; a failed count doesn't block the article.
+       article: (route: ActivatedRouteSnapshot) => {
+         const http = inject(HttpClient);
+         const slug = route.paramMap.get('slug');
+         return http.post<void>(`/api/articles/${slug}/view`, null).pipe(
+           catchError(err => {
+             console.error('view count update failed', err);
+             return of(null);
+           }),
+           switchMap(() => http.get<Article>(`/api/articles/${slug}`)),
+           catchError(err => {
+             console.error('article resolve failed', err);
+             return of(null);
+           })
+         );
+       }
+     }
+   },
    { path: 'about', component: AboutComponent },
    { path: 'contact', component: ContactComponent },
   {

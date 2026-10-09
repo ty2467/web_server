@@ -35,6 +35,19 @@ class ArticleDetailController {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /** Called by the route resolver before GET /articles/{slug}, so the
+     *  returned view_count already includes this visit. Single atomic
+     *  UPDATE, no read-modify-write race between concurrent viewers. */
+    @PostMapping("/articles/{slug}/view")
+    public ResponseEntity<Void> recordView(@PathVariable String slug) {
+        int updated = jdbcTemplate.update(
+                "UPDATE article_display SET view_count = view_count + 1 " +
+                        "WHERE slug = ? AND state = 'published'",
+                slug
+        );
+        return updated == 0 ? ResponseEntity.notFound().build() : ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/articles/{slug}")
     public ResponseEntity<ArticleDetailDTO> getArticle(@PathVariable String slug) {
         System.out.println("any activation");
