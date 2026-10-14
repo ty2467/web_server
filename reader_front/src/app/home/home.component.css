@@ -58,10 +58,18 @@
 /* Philosophy: Isolate Main News. Text stacks explicitly ON TOP of media. */
 
 /* Hide Side News and Secondary Grids (Sections) universally for Types 1, 2, & 3 */
-.side-news,
-.top-lead-stack .secondary-grid,
-.major-container .secondary-grid {
+.side-news {
   display: none;
+}
+
+/* Bottom grids: all types, serialized one per row */
+.top-lead-stack .secondary-grid,
+.major-container .secondary-grid,
+.matrix-base-container .secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin: 30px 0;
 }
 
 /* Base Main News Alignment */
