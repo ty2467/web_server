@@ -63,11 +63,19 @@
 }
 
 /* Bottom grids: all types, serialized one per row */
-.top-lead-stack .secondary-grid,
+/* Bottom grids: Types 2 & 4, serialized one per row */
 .major-container .secondary-grid,
 .matrix-base-container .secondary-grid {
   display: grid;
   grid-template-columns: 1fr;
+  gap: 24px;
+  margin: 30px 0;
+}
+
+/* Type 1 (Rotisserie): serialized, columns read right-to-left */
+.top-lead-stack .secondary-grid {
+  display: flex;
+  flex-direction: column-reverse;
   gap: 24px;
   margin: 30px 0;
 }
