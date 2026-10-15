@@ -142,7 +142,7 @@ class NewsController {
 
     private static final String LIVE_CATEGORIES =
             "'美洲頭條','天天話題','美國觀察','中美關係','工商新聞','出海專區'," +
-                    "'CES消費電子展','美洲台探訪','商務合作','西望成都'";
+                    "'CES消費電子展','美洲台探訪','商務合作'";
 
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {
