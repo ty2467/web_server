@@ -14,7 +14,7 @@ import { BlockUIState } from './ingest-block.model';
 @Component({
   selector: 'app-video-block',
   standalone: true,
-  styleUrls: ['./ingest.component.css'],
+  styleUrls: ['./media-blocks.css'],
   template: `
     <div class="block-unit">
       <div class="drag-gutter" data-drag-handle>

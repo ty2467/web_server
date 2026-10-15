@@ -13,7 +13,7 @@ import { BlockUIState, ImageAlign } from './ingest-block.model';
 @Component({
   selector: 'app-image-block',
   standalone: true,
-  styleUrls: ['./ingest.component.css'],
+  styleUrls: ['./media-blocks.css'],
   template: `
     <div class="block-unit">
       <div class="drag-gutter" data-drag-handle>
