@@ -424,7 +424,7 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
   // Fixed publication categories — the template renders these as a dropdown
   // so editors can't free-type a variant that won't match on the read side.
    readonly categories: string[] = ['美洲頭條', '天天話題', '美國觀察', '中美關係',
-     '工商新聞', '出海專區', 'CES消費電子展', '美洲台探訪', '商務合作',];
+     '工商新聞', '出海專區', 'CES消費電子展', '美洲台探訪', '商務合作', '西望成都'];
 
   // ===========================================================================
   // content_blocks <-> document. The wire format is a flat list of six-key
