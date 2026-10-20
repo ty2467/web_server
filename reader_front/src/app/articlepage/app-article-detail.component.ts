@@ -30,7 +30,6 @@ export class ArticleDetailComponent {
     return Date.parse(a.updatedAt) - Date.parse(a.publishedAt) > 60_000;
   });
 
-
   constructor() {
     // Populate from whatever the route resolver already fetched — no
     // duplicate request here, this just reads the resolved value.

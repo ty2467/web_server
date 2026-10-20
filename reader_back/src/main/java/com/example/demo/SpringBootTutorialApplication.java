@@ -14,34 +14,6 @@ public class SpringBootTutorialApplication {
     }
 }
 
-class MediaDTO {
-    public String url;
-    public String type;
-    public int orderId;
-
-    public MediaDTO(String url, String type, int orderId) {
-        this.url = url;
-        this.type = type;
-        this.orderId = orderId;
-    }
-
-    public MediaDTO(String url, String type) {
-        this.url = url;
-        this.type = type;
-        this.orderId = 0;
-    }
-}
-
-class ParagraphDTO {
-    public String text;
-    public int orderId;
-
-    public ParagraphDTO(String text, int orderId) {
-        this.text = text;
-        this.orderId = orderId;
-    }
-}
-
 class Article {
     public String id;
     public String slug;
