@@ -1,0 +1,13 @@
+site_name: My Docs
+nav:
+  - Home: index.md
+  - page nav:
+      - writer_front: ws/wf.md
+      - writer_back api: ws/wb.md
+      - writer_back's helper: ws/wb_helper.md
+      - reader_front: ws/rf.md
+      - reader_back's api: ws/rb.md
+      - reader_back's helper: ws/rb_helper.md
+      - 2home middleware: ws/2home.md
+      - 2article display middleware: ws/2article.md
+      - 2llm middleware: ws/2llm.md
