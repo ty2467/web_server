@@ -1,5 +1,5 @@
 import { RouterModule, ActivatedRoute } from '@angular/router';
-import { Component, signal, inject, OnInit, OnDestroy, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, signal, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import {
@@ -29,8 +29,6 @@ interface StockQuote {
   styleUrls: ['home.component.css'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  @ViewChild('leadVideo') videoElement!: ElementRef<HTMLVideoElement>;
-
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
 
@@ -296,10 +294,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       setTimeout(() => {
         if (mainRotates) {
           this.currentLeadIndex = (this.currentLeadIndex + 1) % this.rotisseriePool.length;
-          const videoEl = this.videoElement?.nativeElement;
-          if (videoEl) {
-            videoEl.load();
-          }
           this.fadeState.set('fade-in');
         }
 

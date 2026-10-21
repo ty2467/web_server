@@ -20,7 +20,6 @@ class Article {
     public String title;
     public String summary;
     public String image;
-    public String video;
     public String category;
 
     /**
@@ -35,36 +34,12 @@ class Article {
 
     /** 排列 within the chosen front: 0 = 中心, 1 = 侧, 2 = 底. Null for 栏目-only rows. */
     public Integer intra_section_zone;
-    public String category_position;
 
-    /** 排列 within the category page's main block: 0 = 中心, 1 = 侧. No 底. Null when not on main. */
-    public Integer category_intra;
-
+    //article object constructor
     public Article() {}
-
-    public Article(String title, String summary, String category, String asset, boolean isVideo) {
-        this.title = title;
-        this.summary = summary;
-        this.category = category;
-        if (isVideo) {
-            this.video = asset;
-        } else {
-            this.image = asset;
-        }
-    }
-
-    public Article(String id, String title, String summary, String category, String image) {
-        this.id = id;
-        this.title = title;
-        this.summary = summary;
-        this.category = category;
-        this.image = image;
-    }
 }
 
 class PageDataDTO {
-    public List<String> menuItems;
-    public String bannerText;
     public List<Article> articlePool;
 }
 
@@ -120,9 +95,6 @@ class NewsController {
     public PageDataDTO getHomePageData() {
         PageDataDTO data = new PageDataDTO();
 
-        data.menuItems = jdbcTemplate.queryForList(
-                "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
-        data.bannerText = "Latest Updates from the Newsroom";
 
         // 侧 AND 底 ARE CAPPED PER FRONT, PER SLOT.
 //
@@ -174,10 +146,6 @@ class NewsController {
     @GetMapping("/category/{name}")
     public PageDataDTO getCategoryPageData(@PathVariable String name) {
         PageDataDTO data = new PageDataDTO();
-
-        data.menuItems = jdbcTemplate.queryForList(
-                "SELECT DISTINCT category FROM home_page WHERE category IS NOT NULL LIMIT 7", String.class);
-        data.bannerText = "Latest in " + name;
 
         // Pure time order. Slot assignment (中心 / 栏目 / 侧) is a time rule
         // applied on the frontend; nothing here reads category placement.
