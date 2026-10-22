@@ -63,15 +63,6 @@ class NewsController {
      * to lose by using it — the column was never indexed and the table is
      * scanned regardless.
      */
-    private static final String ON_ANY_FRONT =
-            "(FIND_IN_SET('super_main', section_zone) " +
-                    " OR FIND_IN_SET('main', section_zone) " +
-                    " OR FIND_IN_SET('sub_main', section_zone) " +
-                    " OR FIND_IN_SET('tertiary', section_zone))";
-
-    private static final String SELECT_COLS =
-            "SELECT id, slug, title, dek, category, section_zone, intra_section_zone, cover_media_url ";
-
 
     private static final String CATEGORY_RANK =
             "FIELD(category, '美洲頭條', '中美關係','美國觀察', '工商新聞', " +
@@ -85,7 +76,6 @@ class NewsController {
                     "     WHEN FIND_IN_SET('tertiary', section_zone) THEN 'tertiary' END";
 
     private static final int ROTISSERIE_CAP = 5;
-
 
     private static final String LIVE_CATEGORIES =
             "'美洲頭條','天天話題','美國觀察','中美關係','工商新聞','出海專區'," +
