@@ -131,6 +131,24 @@ public class SpringBootTutorialApplication {
                 .toLowerCase();
     }
 
+    /*
+    *
+    * */
+    /** Upload time to the ms, same zone as the month folder: 20261028-095512345 */
+    private String uploadStamp() {
+        return java.time.LocalDateTime.now(java.time.ZoneId.of("America/Los_Angeles"))
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmssSSS"));
+    }
+
+    /** "clip.mp4" -> "clip_20261028-095512345.mp4"; no extension -> stamp appended. */
+    private String stampedName(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        String stamp = uploadStamp();
+        return dot > 0
+                ? fileName.substring(0, dot) + "_" + stamp + fileName.substring(dot)
+                : fileName + "_" + stamp;
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(SpringBootTutorialApplication.class, args);
     }
@@ -197,7 +215,8 @@ public class SpringBootTutorialApplication {
     /** Writes WEB_ROOT/<month>/<fileName>; returns "<month>/<fileName>" for the client. */
     private String assembleFile(Path dir, String fileName, int totalChunks) throws IOException {
         String subDir = currentSubDir();
-        Path finalPath = Paths.get(WEB_ROOT, subDir, fileName);
+        String storedName = stampedName(fileName);
+        Path finalPath = Paths.get(WEB_ROOT, subDir, storedName);
         Files.createDirectories(finalPath.getParent());
 
         try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(finalPath))) {
@@ -209,7 +228,7 @@ public class SpringBootTutorialApplication {
         }
 
         deleteDirectoryRecursively(dir);
-        return subDir + "/" + fileName;
+        return subDir + "/" + storedName;
     }
 
 
@@ -222,7 +241,8 @@ public class SpringBootTutorialApplication {
         }
 
         String subDir = currentSubDir();
-        Path finalPath = Paths.get(WEB_ROOT, subDir, fileName);
+        String storedName = stampedName(fileName);
+        Path finalPath = Paths.get(WEB_ROOT, subDir, storedName);
 
         try {
             Files.createDirectories(finalPath.getParent());
@@ -230,7 +250,7 @@ public class SpringBootTutorialApplication {
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             // The month folder is a server-side decision, so the client is
             // told where the file landed rather than guessing.
-            return ResponseEntity.ok(Map.of("path", subDir + "/" + fileName));
+            return ResponseEntity.ok(Map.of("path", subDir + "/" + storedName));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }

@@ -75,7 +75,7 @@ export class CategoryComponent implements OnInit {
     const tail  = rest.slice(headCount + this.SIDES_CAP);
 
     //small is default.
-    this.majorFront = { main: big(main), sides: sides.map(small) };
+    this.majorFront = { main: big(main), sides: sides.map(small) }; //object literal.
     this.rows = [...head, ...tail].map(small);
   }
 }
