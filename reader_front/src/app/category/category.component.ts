@@ -10,12 +10,16 @@ const small = (a: Article): Article => ({ ...a, image: rendition(a.image, 'small
 
 /**
  * The category page's one front block: a 中心 with 侧 beside it.
- * No 底 — category pages don't have one.
+ * No 底 — category pages don't have one. sides is empty for categories
+ * that take no 侧.
  */
 export interface CategoryFront {
   main: Article;
   sides: Article[];
 }
+
+// Categories laid out as 中心 + 栏目 only, no 侧.
+const NO_SIDES = new Set(['際會']);
 
 @Component({
   selector: 'app-category',
@@ -32,11 +36,14 @@ export class CategoryComponent implements OnInit {
 
   private articleStore = new Map<string, Article>();
 
+  category = '';
   majorFront: CategoryFront | null = null;
   rows: Article[] = []; // Reuters-style feed, grows unbounded
 
   ngOnInit() {
     this.route.data.subscribe(data => {
+      this.category = this.route.snapshot.paramMap.get('name') ?? '';
+
       const payload = data['articlePool'] as Article[] | undefined;
       if (payload) {
         this.ingestAndRoute(payload);
@@ -57,6 +64,8 @@ export class CategoryComponent implements OnInit {
    * A thin category shrinks the 栏目 head, never 侧: with R articles left
    * after 中心, the head is min(6, max(0, R - 4)), so 侧 fills before 栏目
    * does.
+   *
+   * NO_SIDES categories skip 侧: newest -> 中心, everything else -> 栏目.
    */
   private ingestAndRoute(rawArticles: Article[]) {
     this.articleStore.clear();
@@ -69,13 +78,18 @@ export class CategoryComponent implements OnInit {
     const main = rawArticles[0];
     const rest = rawArticles.slice(1); // time order preserved
 
+    if (NO_SIDES.has(this.category)) {
+      this.majorFront = { main: big(main), sides: [] };
+      this.rows = rest.map(small);
+      return;
+    }
+
     const headCount = Math.min(this.COLUMN_HEAD, Math.max(0, rest.length - this.SIDES_CAP));
     const head  = rest.slice(0, headCount);
     const sides = rest.slice(headCount, headCount + this.SIDES_CAP);
     const tail  = rest.slice(headCount + this.SIDES_CAP);
 
-    //small is default.
-    this.majorFront = { main: big(main), sides: sides.map(small) }; //object literal.
+    this.majorFront = { main: big(main), sides: sides.map(small) };
     this.rows = [...head, ...tail].map(small);
   }
 }

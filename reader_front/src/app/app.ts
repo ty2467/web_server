@@ -35,7 +35,8 @@ export class App implements OnInit {
     'CES消費電子展',
     '美洲台探訪',
     '商務合作',
-    '中美關係'
+    '中美關係',
+    '際會'
   ];
 
   stockData: any[] = [];
