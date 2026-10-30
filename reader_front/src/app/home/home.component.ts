@@ -55,8 +55,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   layout: Record<FrontKey, FrontBuckets> = emptyLayout();
 
   // 栏目 is parallel category columns, that shape repeating down the page
-  // until every column has been placed. The API caps each column at four
-  // articles and decides category order; this only groups them into rows.
+  // until every column has been placed.
   matrixRows: MatrixColumn[][] = [];
 
   // Four across, not three: a trailing row of one or two columns leaves an
@@ -134,15 +133,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // ===========================================================================
   // THE INGESTER
-  //
-  // For each article: read its zone membership, then drop a reference into
-  // every bucket it claims. Two independent tests, no ordering assumptions,
-  // no bucket's contents affecting another's, no state carried between
-  // iterations. Re-running it on the same input in any order produces the
-  // same layout.
-  //
-  // The one thing arrival order still decides is the order the 栏目 columns
-  // appear in, which the API sets deliberately.
   // ===========================================================================
 
   private ingestAndRoute(rawArticles: Article[]) {
@@ -158,12 +148,13 @@ export class HomeComponent implements OnInit, OnDestroy {
     for (const raw of rawArticles) {
       const zones = zonesOf(raw);
 
+      //no zone no placement.
       if (zones.size === 0) {
         console.warn(`[home] id=${raw.id} "${raw.title}": no section_zone — not rendered`);
         continue;
       }
 
-      // Small is the default. The one exception is 中心 on a front.
+      // Small is the default. center gets big. when center and has zone, place (redundant?)
       const onFrontCenter =
         raw.intra_section_zone === SLOT.CENTER && FRONT_KEYS.some((k) => zones.has(k));
 
@@ -175,14 +166,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 //       const zones = zonesOf(art);
 
 
-      if (zones.size === 0) {
-        // The ingest form requires a placement, so an untagged row is
-        // legacy or broken data. Say so rather than quietly sweeping it
-        // into 栏目 the way the previous implementation did — a silent
-        // fallback is how bad rows stay invisible.
-        console.warn(`[home] id=${art.id} "${art.title}": no section_zone — not rendered`);
-        continue;
-      }
 
       // --- fronts -----------------------------------------------------------
       // Tested independently rather than as a switch: a row that somehow
@@ -236,9 +219,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           bucket.center.splice(this.showcaseHead++, 0, art);
           break;
         }
-        // 次板 and 三版 are single blocks, so a second 中心 is an editorial
-        // mistake, not a second block. Render it (losing an article is
-        // worse than an ugly page) but make the mistake audible.
+        // 次板 and 三版 are single blocks,excess get flushed.
          if ((key === 'sub_main' || key === 'tertiary') && bucket.center.length > 0) {
                  console.warn(`[home] id=${art.id}: second 中心 on ${key}, which is a single block — dropped`);
                  break;
