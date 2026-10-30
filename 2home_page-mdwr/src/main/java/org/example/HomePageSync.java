@@ -226,14 +226,14 @@ public class HomePageSync {
             try (PreparedStatement ps = db.prepareStatement(
                     "INSERT INTO home_page " +
                             "(id, title, dek, author, category, date_time, section_zone, intra_section_zone, " +
-                            " category_position, category_intra, cover_media_url, slug) " +
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) " +
+                            " category_position, category_intra, cover_media_url, slug, embedding) " +
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) " +
                             "ON DUPLICATE KEY UPDATE " +
                             "  title=VALUES(title), dek=VALUES(dek), author=VALUES(author), " +
                             "  category=VALUES(category), date_time=VALUES(date_time), " +
                             "  section_zone=VALUES(section_zone), intra_section_zone=VALUES(intra_section_zone), " +
                             "  category_position=VALUES(category_position), category_intra=VALUES(category_intra), " +
-                            "  cover_media_url=VALUES(cover_media_url)")) {
+                            "  cover_media_url=VALUES(cover_media_url), embedding=VALUES(embedding)")) {
                 ps.setLong(1, src.id);
                 ps.setString(2, src.title);
                 ps.setString(3, src.summary);       // -> dek
@@ -248,6 +248,7 @@ public class HomePageSync {
                 else ps.setNull(10, java.sql.Types.TINYINT);
                 ps.setString(11, src.leadImageUrl);  // -> cover_media_url
                 ps.setString(12, slug);
+                ps.setBytes(13, src.embedding);      // raw VECTOR(768) payload, passed through
                 ps.executeUpdate();
             }
             RenditionHook.enqueue(src.id, src.leadImageUrl);
@@ -270,10 +271,13 @@ public class HomePageSync {
 
     // Takes the borrowed Connection rather than reading a field, so the
     // caller owns the borrow/return for the whole unit of work.
+    // Takes the borrowed Connection rather than reading a field, so the
+    // caller owns the borrow/return for the whole unit of work.
     private Row fetchRow(Connection db, long id) throws Exception {
         try (PreparedStatement ps = db.prepareStatement(
                 "SELECT id, title, summary, author, category, date_time, " +
-                        "section_zone, intra_section_zone, category_position, category_intra, lead_image_url " +
+                        "section_zone, intra_section_zone, category_position, category_intra, lead_image_url, " +
+                        "embedding " +
                         "FROM editors_db WHERE id = ?")) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -283,12 +287,15 @@ public class HomePageSync {
                 // section_zone / category_position are SET columns on both
                 // sides — getString gives the comma form, setString takes it
                 // back unchanged. Nothing here parses them.
+                // embedding: VECTOR(768) is 768 little-endian float32s on the
+                // wire (3072 bytes); getBytes/setBytes round-trip it as-is.
                 return new Row(
                         rs.getLong("id"), rs.getString("title"), rs.getString("summary"),
                         rs.getString("author"), rs.getString("category"), rs.getTimestamp("date_time"),
                         rs.getString("section_zone"), intraZone,
                         rs.getString("category_position"), catIntra,
-                        rs.getString("lead_image_url")
+                        rs.getString("lead_image_url"),
+                        rs.getBytes("embedding")
                 );
             }
         }
@@ -314,6 +321,7 @@ public class HomePageSync {
     private record Row(
             long id, String title, String summary, String author, String category,
             Timestamp dateTime, String sectionZone, Integer intraSectionZone,
-            String categoryPosition, Integer categoryIntra, String leadImageUrl
+            String categoryPosition, Integer categoryIntra, String leadImageUrl,
+            byte[] embedding
     ) {}
 }
