@@ -239,11 +239,12 @@ export class HomeComponent implements OnInit, OnDestroy {
         // 次板 and 三版 are single blocks, so a second 中心 is an editorial
         // mistake, not a second block. Render it (losing an article is
         // worse than an ugly page) but make the mistake audible.
-        if (key !== 'main' && bucket.center.length > 0) {
-          console.warn(`[home] id=${art.id}: second 中心 on ${key}, which is a single block`);
-        }
-        bucket.center.push(art);
-        break;
+         if ((key === 'sub_main' || key === 'tertiary') && bucket.center.length > 0) {
+                 console.warn(`[home] id=${art.id}: second 中心 on ${key}, which is a single block — dropped`);
+                 break;
+         }
+         bucket.center.push(art);
+         break
 
       case SLOT.SIDE:
         if (bucket.side.length < 4) bucket.side.push(art); //should be side_cap,
