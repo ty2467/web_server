@@ -4,11 +4,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Title, Meta } from '@angular/platform-browser';
 import { Article, ARTICLE_SCHEMA_VERSION } from './article.model';
+import { TrustedHtmlPipe } from './trusted-html.pipe';
 
 @Component({
   selector: 'app-article-detail',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [CommonModule, DatePipe, TrustedHtmlPipe],
   templateUrl: './article-detail.component.html',
   styleUrl: './article-detail.component.scss',
 })

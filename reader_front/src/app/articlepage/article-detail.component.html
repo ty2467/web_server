@@ -29,7 +29,7 @@
 
         <div *ngIf="$any(block).type === 'paragraph'"
              class="article-paragraph"
-             [innerHTML]="$any(block).html">
+             [innerHTML]="$any(block).html | trustedHtml">
         </div>
 
         <figure *ngIf="$any(block).type === 'image' || $any(block).type === 'video'" class="article-media">
