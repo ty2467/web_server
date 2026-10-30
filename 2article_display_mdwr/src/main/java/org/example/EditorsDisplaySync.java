@@ -476,6 +476,14 @@ public class EditorsDisplaySync {
                     case "italic" -> { open.append("<em>"); close.insert(0, "</em>"); }
                     case "underline" -> { open.append("<u>"); close.insert(0, "</u>"); }
                     case "strike" -> { open.append("<s>"); close.insert(0, "</s>"); }
+                    case "textStyle" -> {
+                        JsonNode attrs = mark.get("attrs");
+                        String fs = attrs != null ? textOrNull(attrs, "fontSize") : null;
+                        if (fs != null && fs.matches("\\d+(\\.\\d+)?(px|em|rem|%)")) {
+                            open.append("<span style=\"font-size: ").append(fs).append("\">");
+                            close.insert(0, "</span>");
+                        }
+                    }
                     case "link" -> {
                         JsonNode attrs = mark.get("attrs");
                         linkHref = attrs != null ? textOrNull(attrs, "href") : null;
