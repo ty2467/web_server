@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 public class SearchController {
 
-    private static final String MODEL = "gemini-embedding-001";
-    private static final int DIM = 768;
+    static final String MODEL = "gemini-embedding-001";
+    static final int DIM = 768;
     private static final int MAX_LIMIT = 50;
 
     private final JdbcTemplate jdbc;
@@ -25,6 +25,19 @@ public class SearchController {
         this.gemini = Client.builder().apiKey(apiKey).build();
     }
 
+    /** query text -> 768 floats */
+    List<Float> embedQuery(String query) {
+        EmbedContentResponse res = gemini.models.embedContent(
+                MODEL, query,
+                EmbedContentConfig.builder().outputDimensionality(DIM).build());
+        return res.embeddings().orElseThrow().get(0).values().orElseThrow();
+    }
+
+    /** floats -> the '[a,b,...]' text VEC_FromText takes */
+    static String toVecText(List<Float> v) {
+        return v.stream().map(String::valueOf).collect(Collectors.joining(",", "[", "]"));
+    }
+
     @GetMapping("/search")
     public List<Map<String, Object>> search(@RequestParam String q,
                                             @RequestParam(defaultValue = "50") int limit) {
@@ -33,11 +46,7 @@ public class SearchController {
         if (query.length() > 200) query = query.substring(0, 200);
         int n = Math.max(1, Math.min(limit, MAX_LIMIT));
 
-        EmbedContentResponse res = gemini.models.embedContent(
-                MODEL, query,
-                EmbedContentConfig.builder().outputDimensionality(DIM).build());
-        List<Float> v = res.embeddings().orElseThrow().get(0).values().orElseThrow();
-        String vec = v.stream().map(String::valueOf).collect(Collectors.joining(",", "[", "]"));
+        String vec = toVecText(embedQuery(query));
 
         // date filter first, then cosine over that set; placeholder rows (all 1.0f) excluded
         return jdbc.queryForList("""
