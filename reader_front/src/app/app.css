@@ -225,6 +225,34 @@
     height: 90px;
   }
 }
+.search-panel:lang(zh) { font-family: "Noto Serif TC", "Songti TC", serif; }
+.search-panel:lang(en) { font-family: "Source Serif 4", Georgia, serif; }
+.search-hit-text:lang(zh) { font-family: "Noto Serif TC", "Songti TC", serif; }
+
+.search-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.search-lang {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(238, 129, 43, 0.1);
+  color: #ee812b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-lang:hover {
+  background: #ee812b;
+  color: #fff;
+}
 /* =========================================
    1. GLOBAL & MOBILE-FIRST BASE (< 768px)
    ========================================= */

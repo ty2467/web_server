@@ -12,6 +12,31 @@ import { Article, rendition } from './layout.model';
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
 })
+const SEARCH_UI = {
+  zh: {
+    results: (q: string) => `「${q}」的搜索結果`,
+    count: '篇',
+    more: '顯示更多',
+    collapse: '收起',
+    empty: '沒有找到相關文章。',
+    error: '搜索失敗，請稍後再試。',
+    close: '關閉',
+    toggle: 'EN',
+  },
+  en: {
+    results: (q: string) => `Search results for “${q}”`,
+    count: 'articles',
+    more: 'Show more',
+    collapse: 'Collapse',
+    empty: 'No matching articles.',
+    error: 'Search failed, please try again later.',
+    close: 'Close',
+    toggle: '中',
+  },
+} as const;
+
+type SearchLang = keyof typeof SEARCH_UI;
+
 export class App implements OnInit {
   private http = inject(HttpClient);
 
@@ -34,6 +59,8 @@ export class App implements OnInit {
     'BRK.B', 'LLY', 'AVGO', 'V', 'JPM', 'NVO', 'UNH', 'WMT', 'MA', 'JNJ', 'PG', 'HD',
   ];
 
+
+
   private apiKey = 'd7np7khr01qm36379nsgd7np7khr01qm36379nt0';
 
 
@@ -43,8 +70,14 @@ export class App implements OnInit {
 
   readonly searchQuery = signal<string>('');
   readonly searchResults = signal<Article[] | null>(null); // null = no active search
-  readonly searchError = signal<string | null>(null);
+  readonly searchError = signal<boolean>(false);
   readonly searchExpanded = signal<boolean>(false);
+
+  readonly searchLang = signal<SearchLang>('zh');
+  readonly st = computed(() => SEARCH_UI[this.searchLang()]);
+  toggleSearchLang(): void {
+    this.searchLang.update(l => (l === 'zh' ? 'en' : 'zh'));
+  }
 
   /** first 3 unless expanded */
   readonly visibleResults = computed(() => {
@@ -87,11 +120,10 @@ export class App implements OnInit {
     return raw.normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 200);
   }
 
-  /** Empty query clears the search. */
   submitSearch(raw: string): void {
     const q = this.cleanQuery(raw);
     this.searchQuery.set(q);
-    this.searchError.set(null);
+    this.searchError.set(false);
     this.searchExpanded.set(false);
 
     if (!q) {
@@ -106,7 +138,7 @@ export class App implements OnInit {
       },
       error: (err) => {
         console.error('Search failed:', err);
-        if (this.searchQuery() === q) this.searchError.set('搜索失敗，請稍後再試。');
+        if (this.searchQuery() === q) this.searchError.set(true);
       }
     });
   }
@@ -115,7 +147,7 @@ export class App implements OnInit {
     if (input) input.value = '';
     this.searchQuery.set('');
     this.searchResults.set(null);
-    this.searchError.set(null);
+    this.searchError.set(false);
     this.searchExpanded.set(false);
   }
 }

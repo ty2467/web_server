@@ -41,19 +41,22 @@
   </div>
 
   @if (searchResults() !== null || searchError()) {
-  <section class="search-panel">
+  <section class="search-panel" [attr.lang]="searchLang() === 'zh' ? 'zh-Hant' : 'en'">
     <div class="search-panel-head">
       <div class="search-title">
-        <span>「{{ searchQuery() }}」的搜索結果/search results</span>
+        <span>{{ st().results(searchQuery()) }}</span>
         @if (searchResults(); as r) {
-        <span class="search-count">{{ r.length }} 篇</span>
+        <span class="search-count">{{ r.length }} {{ st().count }}</span>
         }
       </div>
-      <button class="search-close" (click)="clearSearch(searchInput)" aria-label="關閉/close">✕</button>
+      <div class="search-head-actions">
+        <button class="search-lang" (click)="toggleSearchLang()">{{ st().toggle }}</button>
+        <button class="search-close" (click)="clearSearch(searchInput)" [attr.aria-label]="st().close">✕</button>
+      </div>
     </div>
 
     @if (searchError()) {
-    <p class="search-empty">{{ searchError() }}</p>
+    <p class="search-empty">{{ st().error }}</p>
     } @else {
     <div class="search-list">
       @for (a of visibleResults(); track a.id) {
@@ -61,21 +64,21 @@
         @if (a.image) {
         <img [src]="rendition(a.image, 'small')" alt="" loading="lazy" />
         }
-        <div class="search-hit-text">
+        <div class="search-hit-text" lang="zh-Hant">
           <span class="search-hit-cat">{{ a.category }}</span>
           <strong>{{ a.title }}</strong>
           @if (a.summary) { <p>{{ a.summary }}</p> }
         </div>
       </a>
       } @empty {
-      <p class="search-empty">沒有找到相關文章/no results。</p>
+      <p class="search-empty">{{ st().empty }}</p>
       }
     </div>
 
     @if (hiddenCount() > 0) {
-    <button class="search-more" (click)="searchExpanded.set(true)">顯示更多/show more（{{ hiddenCount() }}）</button>
+    <button class="search-more" (click)="searchExpanded.set(true)">{{ st().more }} ({{ hiddenCount() }})</button>
     } @else if (searchExpanded()) {
-    <button class="search-more" (click)="searchExpanded.set(false)">收起/collapse</button>
+    <button class="search-more" (click)="searchExpanded.set(false)">{{ st().collapse }}</button>
     }
     }
   </section>
