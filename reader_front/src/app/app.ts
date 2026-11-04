@@ -1,8 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, map } from 'rxjs';
+import { Article, rendition } from './layout.model';
 
 @Component({
   selector: 'app-root',
@@ -13,18 +14,6 @@ import { forkJoin, map } from 'rxjs';
 })
 export class App implements OnInit {
   private http = inject(HttpClient);
-
-//   menuItems: string[] = [
-//     '美洲头条',
-//     '天天话题',
-//     '美国观察',
-//     '工商新闻',
-//     '出海专区',
-//     'CES消费电子展',
-//     '美洲台探访',
-//     '商务合作',
-//     '中美关系'
-//   ];
 
   menuItems: string[] = [
     '美洲頭條',
@@ -41,31 +30,22 @@ export class App implements OnInit {
 
   stockData: any[] = [];
   private symbols = [
-    '^GSPC',
-    '^IXIC',
-    '^DJI',
-    'AAPL',
-    'MSFT',
-    'GOOGL',
-    'AMZN',
-    'NVDA',
-    'META',
-    'TSLA',
-    'BRK.B',
-    'LLY',
-    'AVGO',
-    'V',
-    'JPM',
-    'NVO',
-    'UNH',
-    'WMT',
-    'MA',
-    'JNJ',
-    'PG',
-    'HD',
+    '^GSPC', '^IXIC', '^DJI', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA',
+    'BRK.B', 'LLY', 'AVGO', 'V', 'JPM', 'NVO', 'UNH', 'WMT', 'MA', 'JNJ', 'PG', 'HD',
   ];
 
   private apiKey = 'd7np7khr01qm36379nsgd7np7khr01qm36379nt0';
+
+
+  /** search — lives in the shell so it survives route changes */
+  private readonly SEARCH_URL = '/api/search';
+
+  readonly searchQuery = signal<string>('');
+  readonly searchResults = signal<Article[] | null>(null); // null = no active search
+  readonly searchError = signal<string | null>(null);
+
+  readonly rendition = rendition;
+
 
   ngOnInit() {
     this.fetchStockData();
@@ -87,5 +67,41 @@ export class App implements OnInit {
       next: (data) => (this.stockData = data),
       error: (err) => console.error('Stock fetch failed', err),
     });
+  }
+
+
+  /** NFKC (full-width -> half-width), collapse whitespace, trim, cap at the backend's 200. */
+  private cleanQuery(raw: string): string {
+    return raw.normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 200);
+  }
+
+  /** Empty query clears the search. */
+  submitSearch(raw: string): void {
+    const q = this.cleanQuery(raw);
+    this.searchQuery.set(q);
+    this.searchError.set(null);
+
+    if (!q) {
+      this.searchResults.set(null);
+      return;
+    }
+
+    this.http.get<Article[]>(this.SEARCH_URL, { params: { q, limit: 50 } }).subscribe({
+      next: (data) => {
+        // a slower, older search must not overwrite a newer one
+        if (this.searchQuery() === q) this.searchResults.set(data);
+      },
+      error: (err) => {
+        console.error('Search failed:', err);
+        if (this.searchQuery() === q) this.searchError.set('搜索失敗，請稍後再試。');
+      }
+    });
+  }
+
+  clearSearch(input?: HTMLInputElement): void {
+    if (input) input.value = '';
+    this.searchQuery.set('');
+    this.searchResults.set(null);
+    this.searchError.set(null);
   }
 }

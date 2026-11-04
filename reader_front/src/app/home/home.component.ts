@@ -154,7 +154,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         continue;
       }
 
-      // Small is the default. center gets big. when center and has zone, place (redundant?)
+      // Small is the default. center gets big. when center
       const onFrontCenter =
         raw.intra_section_zone === SLOT.CENTER && FRONT_KEYS.some((k) => zones.has(k));
 

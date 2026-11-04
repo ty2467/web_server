@@ -1,7 +1,14 @@
 <div class="container">
   <header class="logo-bar">
-    <div class="logo-container" routerLink="/home" style="cursor:pointer;">
-      <img src="/MainLogo.png" alt="PhoenixTV Logo" class="logo-image">
+    <div class="logo-container">
+      <img src="/MainLogo.png" alt="PhoenixTV Logo" class="logo-image" routerLink="/home" style="cursor:pointer;">
+
+      <div class="site-search">
+        <input #searchInput type="search" placeholder="search article"
+               (keydown.enter)="submitSearch(searchInput.value)"
+               (keydown.escape)="clearSearch(searchInput)" />
+        <button class="site-search-btn" (click)="submitSearch(searchInput.value)">搜索</button>
+      </div>
     </div>
   </header>
 
@@ -32,6 +39,34 @@
       </div>
     </div>
   </div>
+
+  @if (searchResults() !== null || searchError()) {
+  <section class="search-panel">
+    <div class="search-panel-head">
+      <span>「{{ searchQuery() }}」的搜索結果</span>
+      <button class="search-close" (click)="clearSearch(searchInput)">✕</button>
+    </div>
+
+    @if (searchError()) {
+    <p class="search-empty">{{ searchError() }}</p>
+    } @else {
+    @for (a of searchResults(); track a.id) {
+    <a class="search-hit" [routerLink]="['/article', a.slug]" (click)="clearSearch(searchInput)">
+      @if (a.image) {
+      <img [src]="rendition(a.image, 'small')" alt="" loading="lazy" />
+      }
+      <div class="search-hit-text">
+        <span class="search-hit-cat">{{ a.category }}</span>
+        <strong>{{ a.title }}</strong>
+        @if (a.summary) { <p>{{ a.summary }}</p> }
+      </div>
+    </a>
+    } @empty {
+    <p class="search-empty">沒有找到相關文章, no article found. </p>
+    }
+    }
+  </section>
+  }
 
   <main>
     <router-outlet></router-outlet>
