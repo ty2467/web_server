@@ -44,12 +44,12 @@
   <section class="search-panel">
     <div class="search-panel-head">
       <div class="search-title">
-        <span>「{{ searchQuery() }}」的搜索結果</span>
+        <span>「{{ searchQuery() }}」的搜索結果/search results</span>
         @if (searchResults(); as r) {
         <span class="search-count">{{ r.length }} 篇</span>
         }
       </div>
-      <button class="search-close" (click)="clearSearch(searchInput)" aria-label="關閉">✕</button>
+      <button class="search-close" (click)="clearSearch(searchInput)" aria-label="關閉/close">✕</button>
     </div>
 
     @if (searchError()) {
@@ -68,14 +68,14 @@
         </div>
       </a>
       } @empty {
-      <p class="search-empty">沒有找到相關文章。</p>
+      <p class="search-empty">沒有找到相關文章/no results。</p>
       }
     </div>
 
     @if (hiddenCount() > 0) {
-    <button class="search-more" (click)="searchExpanded.set(true)">顯示更多（{{ hiddenCount() }}）</button>
+    <button class="search-more" (click)="searchExpanded.set(true)">顯示更多/show more（{{ hiddenCount() }}）</button>
     } @else if (searchExpanded()) {
-    <button class="search-more" (click)="searchExpanded.set(false)">收起</button>
+    <button class="search-more" (click)="searchExpanded.set(false)">收起/collapse</button>
     }
     }
   </section>
