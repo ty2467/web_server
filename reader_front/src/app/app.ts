@@ -5,13 +5,6 @@ import { HttpClient } from '@angular/common/http';
 import { forkJoin, map } from 'rxjs';
 import { Article, rendition } from './layout.model';
 
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
-  templateUrl: './app.html',
-  styleUrls: ['./app.css'],
-})
 const SEARCH_UI = {
   zh: {
     results: (q: string) => `「${q}」的搜索結果`,
@@ -37,6 +30,13 @@ const SEARCH_UI = {
 
 type SearchLang = keyof typeof SEARCH_UI;
 
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  templateUrl: './app.html',
+  styleUrls: ['./app.css'],
+})
 export class App implements OnInit {
   private http = inject(HttpClient);
 
