@@ -1,3 +1,5 @@
+package com.example.demo;
+
 import com.google.genai.Client;
 import com.google.genai.types.EmbedContentConfig;
 import com.google.genai.types.EmbedContentResponse;
