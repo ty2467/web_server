@@ -37,16 +37,26 @@ export class App implements OnInit {
   private apiKey = 'd7np7khr01qm36379nsgd7np7khr01qm36379nt0';
 
 
-  /** search — lives in the shell so it survives route changes */
-  private readonly SEARCH_URL = '/api/search';
+   /** search — lives in the shell so it survives route changes */
+   private readonly SEARCH_URL = '/api/search';
+   private readonly SEARCH_PREVIEW = 3;
 
-  readonly searchQuery = signal<string>('');
-  readonly searchResults = signal<Article[] | null>(null); // null = no active search
-  readonly searchError = signal<string | null>(null);
+   readonly searchQuery = signal<string>('');
+   readonly searchResults = signal<Article[] | null>(null); // null = no active search
+   readonly searchError = signal<string | null>(null);
+   readonly searchExpanded = signal<boolean>(false);
 
-  readonly rendition = rendition;
+   /** first 3 unless expanded */
+   readonly visibleResults = computed(() => {
+     const r = this.searchResults() ?? [];
+     return this.searchExpanded() ? r : r.slice(0, this.SEARCH_PREVIEW);
+   });
 
+   readonly hiddenCount = computed(() =>
+     (this.searchResults()?.length ?? 0) - this.visibleResults().length
+   );
 
+   readonly rendition = rendition;
   ngOnInit() {
     this.fetchStockData();
   }
@@ -70,38 +80,40 @@ export class App implements OnInit {
   }
 
 
-  /** NFKC (full-width -> half-width), collapse whitespace, trim, cap at the backend's 200. */
-  private cleanQuery(raw: string): string {
-    return raw.normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 200);
-  }
+   /** NFKC (full-width -> half-width), collapse whitespace, trim, cap at the backend's 200. */
+   private cleanQuery(raw: string): string {
+     return raw.normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 200);
+   }
 
-  /** Empty query clears the search. */
-  submitSearch(raw: string): void {
-    const q = this.cleanQuery(raw);
-    this.searchQuery.set(q);
-    this.searchError.set(null);
+   /** Empty query clears the search. */
+   submitSearch(raw: string): void {
+     const q = this.cleanQuery(raw);
+     this.searchQuery.set(q);
+     this.searchError.set(null);
+     this.searchExpanded.set(false);
 
-    if (!q) {
-      this.searchResults.set(null);
-      return;
-    }
+     if (!q) {
+       this.searchResults.set(null);
+       return;
+     }
 
-    this.http.get<Article[]>(this.SEARCH_URL, { params: { q, limit: 50 } }).subscribe({
-      next: (data) => {
-        // a slower, older search must not overwrite a newer one
-        if (this.searchQuery() === q) this.searchResults.set(data);
-      },
-      error: (err) => {
-        console.error('Search failed:', err);
-        if (this.searchQuery() === q) this.searchError.set('搜索失敗，請稍後再試。');
-      }
-    });
-  }
+     this.http.get<Article[]>(this.SEARCH_URL, { params: { q, limit: 50 } }).subscribe({
+       next: (data) => {
+         // a slower, older search must not overwrite a newer one
+         if (this.searchQuery() === q) this.searchResults.set(data);
+       },
+       error: (err) => {
+         console.error('Search failed:', err);
+         if (this.searchQuery() === q) this.searchError.set('搜索失敗，請稍後再試。');
+       }
+     });
+   }
 
-  clearSearch(input?: HTMLInputElement): void {
-    if (input) input.value = '';
-    this.searchQuery.set('');
-    this.searchResults.set(null);
-    this.searchError.set(null);
-  }
+   clearSearch(input?: HTMLInputElement): void {
+     if (input) input.value = '';
+     this.searchQuery.set('');
+     this.searchResults.set(null);
+     this.searchError.set(null);
+     this.searchExpanded.set(false);
+   }
 }

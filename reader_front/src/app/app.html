@@ -41,28 +41,42 @@
   </div>
 
   @if (searchResults() !== null || searchError()) {
+  @if (searchResults() !== null || searchError()) {
   <section class="search-panel">
     <div class="search-panel-head">
-      <span>「{{ searchQuery() }}」的搜索結果</span>
-      <button class="search-close" (click)="clearSearch(searchInput)">✕</button>
+      <div class="search-title">
+        <span>「{{ searchQuery() }}」的搜索結果</span>
+        @if (searchResults(); as r) {
+        <span class="search-count">{{ r.length }} 篇</span>
+        }
+      </div>
+      <button class="search-close" (click)="clearSearch(searchInput)" aria-label="關閉">✕</button>
     </div>
 
     @if (searchError()) {
     <p class="search-empty">{{ searchError() }}</p>
     } @else {
-    @for (a of searchResults(); track a.id) {
-    <a class="search-hit" [routerLink]="['/article', a.slug]" (click)="clearSearch(searchInput)">
-      @if (a.image) {
-      <img [src]="rendition(a.image, 'small')" alt="" loading="lazy" />
+    <div class="search-list">
+      @for (a of visibleResults(); track a.id) {
+      <a class="search-hit" [routerLink]="['/article', a.slug]" (click)="clearSearch(searchInput)">
+        @if (a.image) {
+        <img [src]="rendition(a.image, 'small')" alt="" loading="lazy" />
+        }
+        <div class="search-hit-text">
+          <span class="search-hit-cat">{{ a.category }}</span>
+          <strong>{{ a.title }}</strong>
+          @if (a.summary) { <p>{{ a.summary }}</p> }
+        </div>
+      </a>
+      } @empty {
+      <p class="search-empty">沒有找到相關文章。</p>
       }
-      <div class="search-hit-text">
-        <span class="search-hit-cat">{{ a.category }}</span>
-        <strong>{{ a.title }}</strong>
-        @if (a.summary) { <p>{{ a.summary }}</p> }
-      </div>
-    </a>
-    } @empty {
-    <p class="search-empty">沒有找到相關文章, no article found. </p>
+    </div>
+
+    @if (hiddenCount() > 0) {
+    <button class="search-more" (click)="searchExpanded.set(true)">顯示更多（{{ hiddenCount() }}）</button>
+    } @else if (searchExpanded()) {
+    <button class="search-more" (click)="searchExpanded.set(false)">收起</button>
     }
     }
   </section>
