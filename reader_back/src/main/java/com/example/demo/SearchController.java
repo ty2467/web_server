@@ -22,7 +22,7 @@ public class SearchController {
     private final JdbcTemplate jdbc;
     private final Client gemini;
 
-    public SearchController(JdbcTemplate jdbc, @Value("${gemini.api-key}") String apiKey) {
+    public SearchController(JdbcTemplate jdbc, @Value("${GEMINI_API_KEY}") String apiKey) {
         this.jdbc = jdbc;
         this.gemini = Client.builder().apiKey(apiKey).build();
     }
