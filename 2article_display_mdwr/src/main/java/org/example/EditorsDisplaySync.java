@@ -399,6 +399,8 @@ public class EditorsDisplaySync {
                 block.putNull("alt");
                 String caption = textOrNull(dto, "caption");
                 if (caption == null) block.putNull("caption"); else block.put("caption", caption);
+                String align = textOrNull(dto, "align");
+                if (align == null) block.putNull("align"); else block.put("align", align);
                 block.putNull("credit");
             } else {
                 continue;

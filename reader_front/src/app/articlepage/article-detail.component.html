@@ -40,7 +40,10 @@
                  [attr.aria-label]="$any(block).alt">
             <source [src]="$any(block).url" type="video/mp4">
           </video>
-          <figcaption *ngIf="$any(block).caption || $any(block).credit">
+          <figcaption *ngIf="$any(block).caption || $any(block).credit"
+                      [style.justify-content]="$any(block).align === 'center' ? 'center'
+                                     : $any(block).align === 'right' ? 'flex-end'
+                                     : null">
             <span class="media-caption" *ngIf="$any(block).caption">{{ $any(block).caption }}</span>
             <span class="media-credit" *ngIf="$any(block).credit">{{ $any(block).credit }}</span>
           </figcaption>

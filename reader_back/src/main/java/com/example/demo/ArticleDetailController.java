@@ -80,8 +80,6 @@ class ArticleDetailController {
                         dto.leadImage = lead;
 
                     }
-                    System.out.println("dto return reached");
-                    System.out.println(dto);
                     return dto;
                 }, slug
         );
