@@ -88,7 +88,7 @@ class ArticleDetailController {
     }
 
     /** Matches Pick<Article, 'slug' | 'headline'> on the frontend — nothing more. */
-    GetMapping("/articles/{slug}/suggested")
+    @GetMapping("/articles/{slug}/suggested")
     public List<SuggestedArticleDTO> getSuggested(@PathVariable String slug) {
         return jdbcTemplate.query(
                 """
