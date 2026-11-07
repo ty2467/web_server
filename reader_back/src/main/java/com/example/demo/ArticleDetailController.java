@@ -88,17 +88,18 @@ class ArticleDetailController {
     }
 
     /** Matches Pick<Article, 'slug' | 'headline'> on the frontend — nothing more. */
-    @GetMapping("/articles/{slug}/suggested")
+    GetMapping("/articles/{slug}/suggested")
     public List<SuggestedArticleDTO> getSuggested(@PathVariable String slug) {
         return jdbcTemplate.query(
                 """
-                SELECT * FROM (
-                    SELECT slug, headline FROM article_display
-                    WHERE slug != ? AND state = 'published'
-                    ORDER BY published_at DESC
-                    LIMIT 50
-                ) AS recent_pool
-                ORDER BY RAND()
+                SELECT h.slug, h.title AS headline
+                FROM home_page src
+                JOIN home_page h
+                  ON h.slug <> src.slug
+                 AND h.embedding <> REPEAT(X'0000803f', 768)
+                WHERE src.slug = ?
+                  AND src.embedding <> REPEAT(X'0000803f', 768)
+                ORDER BY VEC_DISTANCE_COSINE(h.embedding, src.embedding)
                 LIMIT 4
                 """,
                 (rs, rowNum) -> {
