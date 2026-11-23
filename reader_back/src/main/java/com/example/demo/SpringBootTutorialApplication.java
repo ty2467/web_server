@@ -65,9 +65,9 @@ class NewsController {
      */
 
     private static final String CATEGORY_RANK =
-            "FIELD(category, '美洲頭條', '中美關係','美國觀察', '工商新聞', " +
+            "FIELD(CASE WHEN category = '誠聘英才Career' THEN '美洲頭條' ELSE category END, " +
+                    "'美洲頭條', '中美關係','美國觀察', '工商新聞', " +
                     "'CES消費電子展', '天天話題', '出海專區', '美洲台探訪', '商務合作','西望成都','際會')";
-
 
     private static final String FRONT_OF =
             "CASE WHEN FIND_IN_SET('super_main', section_zone) THEN 'super_main' " +
@@ -79,7 +79,7 @@ class NewsController {
 
     private static final String LIVE_CATEGORIES =
             "'美洲頭條','天天話題','美國觀察','中美關係','工商新聞','出海專區'," +
-                    "'CES消費電子展','美洲台探訪','商務合作','西望成都', '際會'";
+                    "'CES消費電子展','美洲台探訪','商務合作','西望成都', '際會', '誠聘英才Career'";
 
     @GetMapping("/home-page")
     public PageDataDTO getHomePageData() {

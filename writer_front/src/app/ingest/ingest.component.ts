@@ -226,6 +226,7 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
      this.metaForm.get('category')!.valueChanges.subscribe(() => this.applyCategoryLock());
      this.metaForm.get('cat_main')!.valueChanges.subscribe(() => this.syncCategoryIntraValidity());
      this.applyCategoryLock();
+     this.syncColumnAllowance();
      this.syncCategoryIntraValidity();
 
      this.editor = new Editor({
@@ -349,6 +350,23 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
       front: (parts.find(p => p !== 'column') as ZoneFront) ?? null,
       in_column: parts.includes('column')
     });
+  }
+
+  /** Categories that never go in 栏目. */
+  private readonly NO_COLUMN = new Set(['誠聘英才Career']);
+
+  /**
+   * Unticks and disables 栏目 for a NO_COLUMN category; re-enables it for
+   * any other. getRawValue() at submit still reads the disabled false.
+   */
+  private syncColumnAllowance() {
+    const ctrl = this.metaForm.get('in_column')!;
+    if (this.NO_COLUMN.has(this.metaForm.get('category')!.value)) {
+      ctrl.setValue(false, { emitEvent: false });
+      ctrl.disable({ emitEvent: false });
+    } else {
+      ctrl.enable({ emitEvent: false });
+    }
   }
 
   // ===========================================================================
@@ -804,6 +822,7 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
        });
        this.leadImagePreview = data.lead_image_url || null;
        this.applyCategoryLock();
+       this.syncColumnAllowance();
 
        this.loadContent(data.content_blocks ?? []);
      });
