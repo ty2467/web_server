@@ -85,12 +85,6 @@ export const routes: Routes = [
     resolve: { html: staticHtml('terms.html') }
   },
   {
-    path: 'hiring',
-    component: StaticPageComponent,
-    data: { title: '招聘' },
-    resolve: { html: staticHtml('hiring.html') }
-  },
-  {
     path: 'privacy',
     component: StaticPageComponent,
     data: { title: '隱私權保護聲明' },

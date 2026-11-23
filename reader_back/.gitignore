@@ -1,14 +1,9 @@
 HELP.md
-HELP.md
-/target/*
-!/target/classes/
-/target/classes/*
-!/target/classes/static/
-/target/classes/static/*
-!/target/classes/static/pages/
+target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+!**/target/classes/static/pages
 
 ### STS ###
 .apt_generated

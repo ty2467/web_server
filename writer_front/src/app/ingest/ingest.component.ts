@@ -128,13 +128,13 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
      '商務合作':   { front: 'super_main', intra: 2 }   // 高光專區底
    };
 
-  /** 主板中心 is offered to this category alone. */
-  private readonly MAIN_CENTER_CATEGORY = '美洲頭條';
+   /** 主板中心 is offered to these categories alone. */
+  private readonly MAIN_CENTER_CATEGORIES = new Set(['美洲頭條', '誠聘英才Career']);
 
   /** 主板 is picked but 中心 is withheld — drives the template notice. */
   get mainCenterReserved(): boolean {
     const v = this.metaForm?.getRawValue();
-    return v?.front === 'main' && v?.category !== this.MAIN_CENTER_CATEGORY;
+    return v?.front === 'main' && !this.MAIN_CENTER_CATEGORIES.has(v?.category);
   }
 
   get canUseSuperMain(): boolean {
@@ -259,19 +259,19 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
     this.editor?.destroy();
   }
 
-   private readonly BOTTOM_STRIP = ['天天話題', '美國觀察', '中美關係'];
+  private readonly BOTTOM_STRIP = ['天天話題', '美國觀察', '中美關係', '誠聘英才Career'];
 
   /**
-   * 主板 withholds 中心 from every category but 美洲頭條. A 中心 carried in
-   * from another 位置, or left behind by a category change, is not in this
-   * list, so syncIntraZoneValidity()'s stillValid check drops it.
+   * 主板 withholds 中心 from every category outside MAIN_CENTER_CATEGORIES.
+   * A 中心 carried in from another 位置, or left behind by a category change,
+   * is not in this list, so syncIntraZoneValidity()'s stillValid check drops it.
    */
   get intraSectionZoneOptions(): { value: number; label: string }[] {
     const front = this.metaForm?.get('front')?.value;
     const cat = this.metaForm?.get('category')?.value;
     if (front === 'main') {
       const opts = this.BOTTOM_STRIP.includes(cat) ? this.intraFull : this.intraNoBottom;
-      return cat === this.MAIN_CENTER_CATEGORY ? opts : opts.filter(o => o.value !== 0);
+      return this.MAIN_CENTER_CATEGORIES.has(cat) ? opts : opts.filter(o => o.value !== 0);
     }
     if (front === 'super_main' || front === 'sub_main') return this.intraFull;
     if (front === 'tertiary') return this.intraNoBottom;
@@ -424,7 +424,8 @@ export class IngestComponent implements OnInit, OnDestroy, MediaHost {
   // Fixed publication categories — the template renders these as a dropdown
   // so editors can't free-type a variant that won't match on the read side.
    readonly categories: string[] = ['美洲頭條', '天天話題', '美國觀察', '中美關係',
-     '工商新聞', '出海專區', 'CES消費電子展', '美洲台探訪', '商務合作', '西望成都', '際會'];
+       '工商新聞', '出海專區', 'CES消費電子展', '美洲台探訪', '商務合作', '西望成都', '際會',
+       '誠聘英才Career'];
 
   // ===========================================================================
   // content_blocks <-> document. The wire format is a flat list of six-key
