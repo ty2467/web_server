@@ -1,3 +1,7 @@
+/*career decoration*/
+.careers-banner { display: block; flex-shrink: 0; }
+.careers-banner img { height: 64px; width: auto; display: block; }
+
 /* Site search */
 .logo-container {
   display: flex;
