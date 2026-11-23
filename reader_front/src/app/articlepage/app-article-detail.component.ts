@@ -37,7 +37,6 @@ export class ArticleDetailComponent {
     this.route.data.subscribe(data => {
       const resolved = data['article'] as Article | null;
       this.article.set(resolved);
-      console.log(resolved);
       if (resolved) {
         this.fetchSuggested(resolved.slug);
       }
