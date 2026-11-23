@@ -1,5 +1,11 @@
 HELP.md
-target/
+HELP.md
+/target/*
+!/target/classes/
+/target/classes/*
+!/target/classes/static/
+/target/classes/static/*
+!/target/classes/static/pages/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
