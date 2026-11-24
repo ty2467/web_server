@@ -1,16 +1,15 @@
 /*career decoration*/
 .search-group { display: flex; align-items: center; gap: 16px; }
 .careers-banner { display: block; flex-shrink: 0; }
-.careers-banner img { height: 46px; width: auto; display: block; }
+.careers-banner img { height: 50px; width: auto; display: block; }
 
 @media (min-width: 768px) {
-  .careers-banner img { height: 58px; }
+  .careers-banner img { height: 63px; }
 }
 
 @media (min-width: 1100px) {
-  .careers-banner img { height: 74px; }
+  .careers-banner img { height: 80px; }
 }
-
 /* Site search */
 .logo-container {
   display: flex;
