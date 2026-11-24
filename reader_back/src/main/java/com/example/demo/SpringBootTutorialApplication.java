@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import java.util.List;
+import java.util.Map;
+
 @SpringBootApplication
 public class SpringBootTutorialApplication {
     public static void main(String[] args) {
@@ -132,6 +135,18 @@ class NewsController {
         return data;
     }
 
+    @GetMapping("/careers")
+    public ResponseEntity<Map<String, String>> careersSlug() {
+        List<String> slugs = jdbcTemplate.queryForList(
+                "SELECT slug FROM article_display " +
+                        "WHERE category = '誠聘英才Career' AND state = 'published' " +
+                        "ORDER BY published_at DESC LIMIT 1",
+                String.class
+        );
+        return slugs.isEmpty()
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(Map.of("slug", slugs.get(0)));
+    }
 
     @GetMapping("/category/{name}")
     public PageDataDTO getCategoryPageData(@PathVariable String name) {

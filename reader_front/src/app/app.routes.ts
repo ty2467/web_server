@@ -84,6 +84,23 @@ export const routes: Routes = [
     data: { title: '使用條款' },
     resolve: { html: staticHtml('terms.html') }
   },
+ {
+    // One standing article, not a category page: always the newest 誠聘英才Career post.
+    path: 'careers',
+    canActivate: [() => {
+      const router = inject(Router);
+      return inject(HttpClient)
+        .get<{ slug: string }>('/api/careers')
+        .pipe(
+          map(res => router.createUrlTree(['/article', res.slug])),
+          catchError(err => {
+            console.error('careers resolve failed', err);
+            return of(router.createUrlTree(['/home']));
+          })
+        );
+    }],
+    children: []
+  },
   {
     path: 'privacy',
     component: StaticPageComponent,
