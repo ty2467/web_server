@@ -1,5 +1,5 @@
 // app.routes.ts
-import { Routes, ActivatedRouteSnapshot } from '@angular/router';
+import { Routes, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { HomeComponent } from './home/home.component';
