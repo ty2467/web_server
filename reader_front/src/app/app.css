@@ -1,6 +1,7 @@
 /*career decoration*/
+.search-group { display: flex; align-items: center; gap: 16px; }
 .careers-banner { display: block; flex-shrink: 0; }
-.careers-banner img { height: 64px; width: auto; display: block; }
+.careers-banner img { height: 56px; width: auto; display: block; }
 
 /* Site search */
 .logo-container {

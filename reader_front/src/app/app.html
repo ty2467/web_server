@@ -3,17 +3,18 @@
     <div class="logo-container">
       <img src="/MainLogo.png" alt="PhoenixTV Logo" class="logo-image" routerLink="/home" style="cursor:pointer;">
 
-      <div class="site-search">
-        <input #searchInput type="search" placeholder="search article"
-               (keydown.enter)="submitSearch(searchInput.value)"
-               (keydown.escape)="clearSearch(searchInput)" />
-        <button class="site-search-btn" (click)="submitSearch(searchInput.value)">搜索</button>
-      </div>
+      <div class="search-group">
+        <a routerLink="/careers" class="careers-banner">
+          <img src="/916462645_1661442469329046_4049821898739051020_n.jpg">
+        </a>
 
-      <a routerLink="/careers" class="careers-banner">
-        <img src="/916462645_1661442469329046_4049821898739051020_n.jpg"
-             alt="招聘：记者（华盛顿地区）、剪辑/摄影师 — hr@phoenixtv-us.com">
-      </a>
+        <div class="site-search">
+          <input #searchInput type="search" placeholder="search article"
+                 (keydown.enter)="submitSearch(searchInput.value)"
+                 (keydown.escape)="clearSearch(searchInput)" />
+          <button class="site-search-btn" (click)="submitSearch(searchInput.value)">搜索</button>
+        </div>
+      </div>
     </div>
   </header>
 
